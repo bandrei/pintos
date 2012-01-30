@@ -24,7 +24,8 @@
    that are ready to run but not actually running. */
 //static struct list ready_list;
 
-#define PRIORITY_MAX 64
+#define PRIORITY_MAX PRI_MAX+1
+// PRIORITY_MAX = 64
 static struct list priority_list [PRIORITY_MAX];
 
 
