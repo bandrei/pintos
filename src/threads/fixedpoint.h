@@ -1,3 +1,6 @@
+#ifndef THREADS_FIXEDPOINT_H
+#define THREADS_FIXEDPOINT_H
+
 typedef fixed int32_t
 typedef fp_int int32_t 
 typedef fixed_large int64_t
@@ -93,3 +96,5 @@ inline fixed fp_divi(fixed x, fp_int n) {
 	return x / n;
 }
 #define FP_DIVI(X,N) X / N
+
+#endif /* threads/fixedpoint.h */
