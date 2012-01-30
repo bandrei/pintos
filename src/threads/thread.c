@@ -22,7 +22,15 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+//static struct list ready_list;
+
+#define PRIORITY_MAX 64
+static struct list priority_list [PRIORITY_MAX];
+
+
+
+
+
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -90,7 +98,11 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
-  list_init (&ready_list);
+  
+  int i;
+  for (i = 0; i < PRIORITY_MAX; i++)
+    list_init(&(priority_list[i]));
+  
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -245,7 +257,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  
+  list_push_back ( &( priority_list[t->priority] ), &t->elem);
+  
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -316,7 +330,8 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_push_back ( &( priority_list[cur->priority] ), &cur->elem);
+  
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -498,10 +513,16 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if (list_empty (&ready_list))
+  int i;
+  
+  for (i = 0; i < PRIORITY_MAX && list_empty(&(priority_list[i])); i++);
+  // POST: i == PRIORITY_MAX or !list_empty(&(priority_list[i]));
+  
+  if (i == PRIORITY_MAX)
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else 
+    return list_entry ( list_pop_front ( &(priority_list[i]) ), struct thread, elem);
+  
 }
 
 /* Completes a thread switch by activating the new thread's page
