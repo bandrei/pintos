@@ -223,8 +223,17 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
+  
+  struct thread * cur = thread_current();
 
-  thread_current ()->status = THREAD_BLOCKED;
+  cur->status = THREAD_BLOCKED;
+  
+  list_remove(&(cur->elem));
+  
+  // DEBUGGING ONLY
+  cur->elem.next = NULL;
+  cur->elem.prev = NULL;
+  
   schedule ();
 }
 
