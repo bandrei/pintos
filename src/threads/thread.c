@@ -123,7 +123,7 @@ thread_start (void)
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
-thread_tick (void) 
+thread_tick (int64_t ticks) 
 {
   struct thread *t = thread_current ();
 
@@ -138,7 +138,7 @@ thread_tick (void)
     kernel_ticks++;
 
   // wake up everything()
-  thread_wake();
+  thread_wake(ticks);
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -181,7 +181,7 @@ sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux)
 		list_entry(b,struct sleeper, elem) -> sleep_time;
 }
 
-void thread_wake()
+void thread_wake(int64_t timer_ticks)
 {
   //search through the waiting list
   //and pick the elements that are to be woken up
@@ -192,10 +192,14 @@ void thread_wake()
    // sema_up(&list_entry(list_pop_front(&waiting_list),struct sleeper, elem)->waiting_semaphore);
     struct sleeper *tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
     while(true){
-      if(tmp_sleeper->sleep_time <= timer_ticks()){
+      if(tmp_sleeper->sleep_time <= timer_ticks){
+	printf("In thread wake %d", list_size(&waiting_list));
 	sema_up(&tmp_sleeper->waiting_semaphore);  
+	//printf("thread awake\n, %d",tmp_sleeper->sleep_time);
 	if(!list_empty(&waiting_list))
 	  tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
+	else
+		break;
       }
       else{
 	list_push_front(&waiting_list,&tmp_sleeper->elem);
