@@ -191,6 +191,7 @@ void thread_wake(int64_t timer_ticks)
     //printf("list not empty\n");
    // sema_up(&list_entry(list_pop_front(&waiting_list),struct sleeper, elem)->waiting_semaphore);
     struct sleeper *tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
+   
     while(true){
       if(tmp_sleeper->sleep_time <= timer_ticks){
 	printf("In thread wake %d", list_size(&waiting_list));
