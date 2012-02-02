@@ -193,8 +193,7 @@ void thread_wake()
     struct sleeper *tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
    
     while(true){
-      if(tmp_sleeper->sleep_time <= kernel_ticks){
-	printf("list not empty\n");
+      if(tmp_sleeper->sleep_time <= timer_ticks()){
 	sema_up(&tmp_sleeper->waiting_semaphore);  
 	if(!list_empty(&waiting_list))
 	  tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
