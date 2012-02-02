@@ -191,9 +191,20 @@ void thread_wake()
     //printf("list not empty\n");
    // sema_up(&list_entry(list_pop_front(&waiting_list),struct sleeper, elem)->waiting_semaphore);
     struct sleeper *tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
+    while(true){
+      if(tmp_sleeper->sleep_time <= thread_ticks){
+	sema_up(&tmp_sleeper->waiting_semaphore);  
+	if(!list_empty(&waiting_list))
+	  tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
+      }
+      else{
+	list_push_front(&waiting_list,&tmp_sleeper->elem);
+	break;
+      }
+    }
    // printf("%d sleep time %d \n",tmp_sleeper->sleep_time, thread_ticks);
-    sema_up(&tmp_sleeper->waiting_semaphore);
-    /*if(tmp_sleeper->sleep_time <= thread_ticks){
+   /* sema_up(&tmp_sleeper->waiting_semaphore);
+    if(tmp_sleeper->sleep_time <= thread_ticks){
       sema_up(&tmp_sleeper->waiting_semaphore);
     }
     else{    
