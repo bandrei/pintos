@@ -10,6 +10,13 @@ struct semaphore
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
   };
+  
+struct sleeper
+{
+  int64_t sleep_time;
+  struct semaphore waiting_semaphore;
+  struct list_elem elem;
+};
 
 void sema_init (struct semaphore *, unsigned value);
 void sema_down (struct semaphore *);

@@ -23,7 +23,8 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-
+static struct list waiting_list;
+static struct lock waiting_lock;
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -92,6 +93,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&waiting_list);
+  lock_init (&waiting_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -134,9 +137,72 @@ thread_tick (void)
   else
     kernel_ticks++;
 
+  // wake up everything()
+  thread_wake();
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+}
+
+// wake up everything()
+// iterate through the list
+// if it should be woken, up, signal the semaphore it's waiting on
+// if it shouldn't be woken up, stop iterating because the list is ordered (right?)
+
+void thread_sleep(int64_t ticks)
+{  
+  //printf("Thread scheduled for sleep %d \n", list_size(&waiting_list));
+  
+  //lock acquired on the list
+  //put things in the list
+  //should declare them using malloc
+ 
+  struct sleeper sleeper;
+  sleeper.sleep_time = ticks;
+  sema_init(&sleeper.waiting_semaphore,0);
+  
+  
+  lock_acquire(&waiting_lock);
+  list_insert_ordered(&waiting_list, &sleeper.elem, &sleep_less, NULL);  
+  lock_release(&waiting_lock);
+  
+  sema_down(&sleeper.waiting_semaphore);
+  //printf("In lock %d \n", list_size(&waiting_list));
+  
+  lock_acquire(&waiting_lock);
+  list_remove(&sleeper.elem);
+  lock_release(&waiting_lock);
+}
+
+bool
+sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+  return list_entry(a,struct sleeper, elem)->sleep_time <  
+		list_entry(b,struct sleeper, elem) -> sleep_time;
+}
+
+void thread_wake()
+{
+  //search through the waiting list
+  //and pick the elements that are to be woken up
+ 
+  // delete from lis
+  if(!list_empty(&waiting_list)){
+    //printf("list not empty\n");
+   // sema_up(&list_entry(list_pop_front(&waiting_list),struct sleeper, elem)->waiting_semaphore);
+    struct sleeper *tmp_sleeper = list_entry(list_pop_front(&waiting_list),struct sleeper, elem);
+   // printf("%d sleep time %d \n",tmp_sleeper->sleep_time, thread_ticks);
+    sema_up(&tmp_sleeper->waiting_semaphore);
+    /*if(tmp_sleeper->sleep_time <= thread_ticks){
+      sema_up(&tmp_sleeper->waiting_semaphore);
+    }
+    else{    
+      list_push_front(&waiting_list,&tmp_sleeper->elem);
+    }*/
+  }
+  
+ 
+  
 }
 
 /* Prints thread statistics. */

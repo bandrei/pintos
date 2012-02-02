@@ -111,6 +111,8 @@ void thread_init (void);
 void thread_start (void);
 
 void thread_tick (void);
+void thread_sleep(int64_t);
+void thread_wake(void);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
@@ -137,5 +139,6 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+bool sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */
