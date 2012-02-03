@@ -19,12 +19,12 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
-
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
 static struct list waiting_list;
 static struct lock waiting_lock;
+static struct list priority_list [PRI_MAX+1];
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -95,6 +95,10 @@ thread_init (void)
   list_init (&all_list);
   list_init (&waiting_list);
   lock_init (&waiting_lock);
+
+  int i;
+  for (i = 0; i <= PRI_MAX; i++)
+    list_init(&(priority_list[i]));
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -338,7 +342,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_push_back ( &( priority_list[t->priority] ), &(t->elem));
+  //list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -409,7 +414,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_push_back ( &( priority_list[cur->priority] ), &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -437,6 +442,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  //need to remove it from the current priority list
+  //and put it in the new priority list
 }
 
 /* Returns the current thread's priority. */
@@ -591,10 +598,30 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if (list_empty (&ready_list))
+	
+  static struct list * curlist;
+  //static struct list_elem *e;
+  
+  struct thread * thread_to_run = NULL;
+  int i;
+  for (i = PRI_MAX; i >=0; i--) {
+      curlist = &(priority_list[i]);
+      if(!list_empty(curlist))
+	{
+		//printf("1");
+		thread_to_run = list_entry (list_pop_front (curlist), struct thread, elem);
+		break;
+	}
+   }
+   if(thread_to_run == NULL)
+	return idle_thread;
+   else
+	return thread_to_run;
+  /*if (list_empty (&ready_list))
     return idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  */
 }
 
 /* Completes a thread switch by activating the new thread's page
