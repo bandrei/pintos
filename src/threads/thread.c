@@ -429,8 +429,8 @@ thread_foreach (thread_action_func *func, void *aux)
 
   ASSERT (intr_get_level () == INTR_OFF);
 
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
+  for (e = list_begin (&all_list); e != list_end (&all_list); 
+	e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, allelem);
       func (t, aux);
@@ -444,6 +444,8 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   //need to remove it from the current priority list
   //and put it in the new priority list
+  //need to yield the thread if there is another thread 
+  //with a higher priority (i.e. stop executing)
 }
 
 /* Returns the current thread's priority. */
