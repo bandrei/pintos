@@ -1,6 +1,7 @@
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
+#include "threads/malloc.h"
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
@@ -159,22 +160,26 @@ void thread_sleep(int64_t ticks)
   
   //lock acquired on the list
   //put things in the list
-  //should declare them using malloc
+  //TODO: should declare them using malloc
  
-  struct sleeper sleeper;
-  sleeper.sleep_time = ticks;
-  sema_init(&sleeper.waiting_semaphore,0);
+  struct sleeper *sleeper = malloc(sizeof(struct sleeper));
+  /*if(sleeper == NULL){
+  	//out of memory check
+  }*/
+  sleeper->sleep_time = ticks;
+  sema_init(&sleeper->waiting_semaphore,0);
   
   
   lock_acquire(&waiting_lock);
-  list_insert_ordered(&waiting_list, &sleeper.elem, &sleep_less, NULL);  
+  list_insert_ordered(&waiting_list, &sleeper->elem, &sleep_less, NULL);  
   lock_release(&waiting_lock);
   
-  sema_down(&sleeper.waiting_semaphore);
+  sema_down(&sleeper->waiting_semaphore);
   //printf("In lock %d \n", list_size(&waiting_list));
   
   lock_acquire(&waiting_lock);
-  list_remove(&sleeper.elem);
+  list_remove(&sleeper->elem);
+  free(sleeper);
   lock_release(&waiting_lock);
 }
 
@@ -305,6 +310,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield();
 
   return tid;
 }
@@ -441,7 +447,24 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  	struct thread *tmp = thread_current();
+	
+	tmp->priority = new_priority;
+
+	struct list *curlist;
+	int i;
+	for(i = PRI_MAX; i>tmp->priority; i--)
+ 	{
+		curlist = &(priority_list[i]);
+		if(!list_empty(curlist))
+		{
+			
+				thread_yield();
+				break;			
+			
+		}
+	}
+  //thread_current ()->priority = new_priority;
   //need to remove it from the current priority list
   //and put it in the new priority list
   //need to yield the thread if there is another thread 
