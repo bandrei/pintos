@@ -31,6 +31,7 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -137,11 +138,15 @@ sema_up (struct semaphore *sema)
 			
 		}
     }*/
+	//printf("thread ready to wake");
     thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
   }
   sema->value++;
+  //thread_yield();
   intr_set_level (old_level);
+  if(old_level != INTR_OFF)
+  thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
@@ -220,13 +225,27 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  //TODO: check the thread priority of the one that
-  //tries to acquire
-  
-	//some donation code here
+  	//TODO: check the thread priority of the one that
+  	//tries to acquire
+  	//sema_down(lock->sema_don); or interrupts
+	//if one does not want to wake another 
+ 	//thread that might be trying to acquire 
+ 	//the same lock before actually blocking
+	//the current thread (if it cannot acquire
+	//the lock)
+  enum intr_level old_level;
+  old_level = intr_disable();
+  if(lock->holder != NULL )
+  {
+  	thread_current()->try_lock = lock;
+  	lock_donate(lock);
+  }
+  intr_set_level(old_level);
+  //sema_up(lock->sema_don);
   sema_down (&lock->semaphore);
+ // thread_current()->try_lock = NULL;
   lock->holder = thread_current ();
-}
+}         
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -259,11 +278,12 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-//---------------------
-  //change lock prioritu
+  //---------------------
+  //sema_down(&lock->sema_don);
+  //lock_donate_restore
  //do some more code
  // sema_up(&lock->donation);
+  lock->holder = NULL;
 //----------------------	
   sema_up (&lock->semaphore);
 }
@@ -278,6 +298,110 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
+
+/*
+	this might loop up to 8 times (possible future optimizations
+	can be added here)
+*/
+void lock_donate(struct lock *cur_lock)
+{
+
+	//alternative while loop
+	struct lock *next_lock = cur_lock;
+	struct thread *cur_thread = thread_current();
+	struct thread *compare_to_thread;
+	int depth = 0;
+	while(depth<8 && next_lock->holder->priority<cur_thread->priority &&
+		next_lock->holder != cur_thread)
+	{
+		//lock_keep = malloc(sizeof(struct lock_priority));
+		//lock_keep->l = next_lock;
+		//lock_keep->priority = next_lock->holder->priority;
+		//try insert the lock itself in the list
+		// rather than creating a separate data structure
+        if(!((&next_lock->elem)->prev!=NULL || (&next_lock->elem)->next!=NULL))
+		{
+			if(list_empty(&next_lock->holder->lock_list))
+				next_lock->holder->init_priority = next_lock->holder->priority;
+			next_lock->priority = next_lock->holder->priority;	
+			list_insert_ordered(&next_lock->holder->lock_list, &next_lock->elem,
+							 lock_priority_less, NULL);
+					
+		} 
+
+		next_lock->holder->priority = cur_thread->priority;
+
+		if(next_lock->holder->status == THREAD_BLOCKED)
+		{
+			//move up/down the waiting list (wherever that is) 
+			//can be optimzed by moving the pointers around;
+			
+			if((&next_lock->holder->elem)->next != NULL)
+			{
+				compare_to_thread = list_remove(&next_lock->holder->elem);
+				while(!priority_order(&next_lock->holder->elem,
+						(&next_lock->holder->elem)->next,NULL))
+				{
+					(&next_lock->holder->elem)->next->prev = (&next_lock->holder->elem)->prev;
+					(&next_lock->holder->elem)->prev = (&next_lock->holder->elem)->next;
+					(&next_lock->holder->elem)->next = (&next_lock->holder->elem)->next->next;
+				}
+			}
+		}
+		else
+		{
+			//move up/down the priority array/list
+		}
+		
+		depth++;
+		if(next_lock->holder->try_lock != NULL)
+			next_lock = next_lock->holder->try_lock;
+		else
+			break;
+	}
+	/*
+	if(depth == 8) return;
+	if(donor->priority <= cur_lock->holder->priority) return;
+		//add to the list....move the current thread
+		//up or down in whichever list it is (i.e. waiting list
+		//or ready list)
+		//sema_down(lock_donate);
+		struct lock_priority *lock_keep = malloc(sizeof(struct lock_priority));
+		lock_keep->l = cur_lock;
+		lock_keep->priority = cur_lock->holder->priority;
+
+		list_insert_ordered(cur_lock->holder->lock_list, &lock_keep->lock_elem,
+							 lock_priority_less, NULL);
+		//free the struct lock_priority after removing from list 
+
+		cur_lock->holder->priority = donor->priority;
+		
+		//move the thread up and down the waiting list here...
+		//sema_up(lock_donate);
+		if(cur_lock->holder->try_lock != NULL)
+			lock_donate(depth++, donor, cur_lock->holder->try_lock);
+	*/
+	
+}
+
+void lock_donate_restore(struct lock *cur_lock)
+{
+//	struct lock_priority *lock_keep;
+	//if(!list_empty(cur_lock->holder->lock_list))
+	//{
+		
+	//}
+}
+
+bool lock_priority_less(const struct list_elem *a, const struct list_elem *b,
+						void *aux)
+{
+	struct lock_priority *l1 = list_entry(a,struct lock_priority, lock_elem);
+	struct lock_priority *l2 = list_entry(b,struct lock_priority, lock_elem);
+	return l1->priority < l2->priority;
+}
+
+
 
 /* One semaphore in a list. */
 struct semaphore_elem 

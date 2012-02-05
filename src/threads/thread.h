@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include "synch.h"
 #include <stdint.h>
 
 /* States in a thread's life cycle. */
@@ -88,6 +89,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+	int init_priority;					/* Initial priority when donation starts */
+	struct lock *try_lock;				/* Hold the lock the current thread is locked on */
+	struct list lock_list;
     struct list_elem allelem;           /* List element for all threads list. */
    // struct
 

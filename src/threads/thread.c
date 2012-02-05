@@ -595,6 +595,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->try_lock = NULL;
+  //t->lock_list = malloc(sizeof(struct list));
+  //probably good to check for malloc here"
+  list_init(&t->lock_list);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
