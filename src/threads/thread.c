@@ -12,6 +12,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -89,6 +90,15 @@ static tid_t allocate_tid (void);
 void
 thread_init (void) 
 {
+  /**
+   * Initialize appropriate scheduler
+   **/
+  if (thread_mlfqs) {
+    thread_tick = &thread_tick_mlfqs;
+  } else {
+    thread_tick = &thread_tick_ps;
+  }
+  
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -128,7 +138,7 @@ thread_start (void)
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
-thread_tick (int64_t ticks) 
+thread_tick_ps (int64_t ticks) 
 {
   struct thread *t = thread_current ();
 
@@ -141,6 +151,39 @@ thread_tick (int64_t ticks)
 #endif
   else
     kernel_ticks++;
+
+  // wake up everything()
+  thread_wake(ticks);
+  /* Enforce preemption. */
+  if (++thread_ticks >= TIME_SLICE)
+    intr_yield_on_return ();
+}
+
+void
+thread_tick_mlfqs (int64_t ticks)
+{
+  struct thread *t = thread_current ();
+
+  /* Update statistics. */
+  if (t == idle_thread)
+    idle_ticks++;
+#ifdef USERPROG
+  else if (t->pagedir != NULL)
+    user_ticks++;
+#endif
+  else
+    kernel_ticks++;
+  
+  if (ticks%TIMER_FREQ == 0) {
+    // Recalculate load average
+    
+    
+    // Recalculate recent_cpu
+  }
+  
+  if (ticks%4 == 0) {
+    // Recalculate thread priorities
+  }
 
   // wake up everything()
   thread_wake(ticks);

@@ -125,7 +125,10 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-void thread_tick (int64_t);
+typedef float(*fp_thread_tick)(int64_t);
+
+fp_thread_tick thread_tick (int64_t);
+
 void thread_sleep(int64_t);
 void thread_wake(int64_t);
 void thread_print_stats (void);
