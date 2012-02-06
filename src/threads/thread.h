@@ -141,6 +141,7 @@ fp_thread_tick *thread_tick;
 void thread_sleep(int64_t);
 void thread_wake(int64_t);
 void thread_print_stats (void);
+void thread_swap(struct thread *);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);

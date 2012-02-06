@@ -300,6 +300,16 @@ thread_tick_mlfqs (int64_t ticks)
 // if it should be woken, up, signal the semaphore it's waiting on
 // if it shouldn't be woken up, stop iterating because the list is ordered (right?)
 
+void thread_swap(struct thread *to_swap)
+{
+	enum intr_level old_level = intr_disable();
+	list_remove(&to_swap->elem);
+	//to_swap->init_priority = to_swap->priority;
+	to_swap->priority = thread_current()->priority;
+	list_push_back(&priority_list[thread_current()->priority],&to_swap->elem);
+	intr_set_level(old_level);
+}
+
 void thread_sleep(int64_t ticks)
 {  
   //printf("Thread scheduled for sleep %d \n", list_size(&waiting_list));
