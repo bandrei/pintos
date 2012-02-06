@@ -228,9 +228,11 @@ inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
       // TODO: Make this a debug assertion
       list_remove(&(t->elem));
       t->priority = pnew;
+	  t->init_priority = pnew;
       list_push_back(&(priority_list[pnew]), &(t->elem));
     }
   } else {
+	t->init_priority = MLFQS_CALC_PRIORITY;
     t->priority = MLFQS_CALC_PRIORITY;
   }
   
@@ -636,13 +638,18 @@ thread_set_priority_mlfqs (int new_priority UNUSED)
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
+
+
 void
 thread_set_priority_ps (int new_priority) 
 {
+  	enum intr_level old_level;
+	old_level = intr_disable();
   	struct thread *tmp = thread_current();
-	
+		tmp->init_priority = new_priority;
+	if(list_empty(&tmp->lock_list))
+	{
 	tmp->priority = new_priority;
-
 	struct list *curlist;
 	int i;
 	for(i = PRI_MAX; i>tmp->priority; i--)
@@ -651,11 +658,14 @@ thread_set_priority_ps (int new_priority)
 		if(!list_empty(curlist))
 		{
 			
-				thread_yield();
+				
 				break;			
 			
 		}
 	}
+	}
+	intr_set_level(old_level);
+	thread_yield();
   //thread_current ()->priority = new_priority;
   //need to remove it from the current priority list
   //and put it in the new priority list
@@ -785,6 +795,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   
   if (!thread_mlfqs) {
+	t->init_priority = priority;
     t->priority = priority;
   }
   
