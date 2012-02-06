@@ -194,7 +194,7 @@ thread_tick_ps (int64_t ticks)
 inline void thread_count_ready (struct thread *t, void *aux) {
   int *count = (int *) aux;
   
-  if ((t != idle_thread) && 
+  if ((t git != idle_thread) && 
     (t->status == THREAD_READY || t->status == THREAD_RUNNING)
   ) {
     (*count)++;
@@ -228,7 +228,7 @@ inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
       // TODO: Make this a debug assertion
       list_remove(&(t->elem));
       t->priority = pnew;
-	  t->init_priority = pnew;
+	  t->init_priority = pnew; //init priority as well
       list_push_back(&(priority_list[pnew]), &(t->elem));
     }
   } else {
