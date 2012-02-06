@@ -79,9 +79,9 @@ inline fixed fp_divi(fixed x, fp_int n);
 #define FP_SUB(X,Y) (X) - (Y)
 
 
-#define FP_MUL(X,Y) ((fixed_large) (X)) * (Y) / FP_F
+#define FP_MUL(X,Y) (fixed) ( ((fixed_large) (X)) * (Y) / FP_F )
 
-#define FP_DIV(X,Y) ((fixed_large) (X)) * FP_F / (Y)
+#define FP_DIV(X,Y) (fixed) ( ((fixed_large) (X)) * FP_F / (Y) )
 
 /**
  * FP_OP(X,N)

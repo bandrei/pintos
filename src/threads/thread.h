@@ -102,7 +102,7 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    
+        
     /* BSD */
     fixed recent_cpu;
     int nice;

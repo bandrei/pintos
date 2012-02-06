@@ -58,9 +58,9 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
-static fixed la_past_weight;
-static fixed la_cur_weight;
-static fixed fp_pri_max;
+fixed la_past_weight;
+fixed la_cur_weight;
+fixed fp_pri_max;
 
 /* BSD */
 static fixed load_avg;
@@ -117,9 +117,6 @@ thread_init (void)
     la_cur_weight = FP_DIVI(FP_FROMINT(1),60);
     fp_pri_max = FP_FROMINT(PRI_MAX);
     load_avg = FP_FROMINT(0);
-    
-    printf("59: %d\n",FP_FROMINT(59));
-    printf("fp_f: %d\n",FP_F);
     
     printf("Past: %d Cur: %d\n",la_past_weight, la_cur_weight);
     
@@ -214,11 +211,35 @@ inline void thread_calc_recent_cpu (struct thread *t, void *aux UNUSED) {
 
 inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
   // PRE: Interrupts are off
-  t->priority = FP_CLAMPI(FP_FLOOR(
-    FP_SUB(fp_pri_max,
-      FP_ADD((t->recent_cpu)>>2,FP_FROMINT(t->nice)<<1)
-    )
-  ),PRI_MIN,PRI_MAX);
+  
+  
+#define MLFQS_CALC_PRIORITY FP_CLAMPI(FP_FLOOR( \
+    FP_SUB(fp_pri_max, \
+      FP_ADD((t->recent_cpu)>>2,FP_FROMINT(t->nice)<<1) \
+    ) \
+  ),PRI_MIN,PRI_MAX)
+  
+  if (t->status == THREAD_READY) {
+    
+    int pnew = MLFQS_CALC_PRIORITY;
+    
+    if (pnew != t->priority) {
+      // PRE: t->elem is an element of priority_list[t->priority]
+      // TODO: Make this a debug assertion
+      list_remove(&(t->elem));
+      t->priority = pnew;
+      list_push_back(&(priority_list[pnew]), &(t->elem));
+    }
+  } else {
+    t->priority = MLFQS_CALC_PRIORITY;
+  }
+  
+  
+  
+  if (t->status == THREAD_READY) {
+    
+  }
+  
   // Floor(PRI_MAX - recent_cpu/4 - nice/2);
 }
 
@@ -249,14 +270,15 @@ thread_tick_mlfqs (int64_t ticks)
     // Count number of ready threads
     int ready_threads = 0;
     thread_foreach(&thread_count_ready,&ready_threads);
-    printf("Ready threads: %d\n", ready_threads);
     // POST: ready_threads = number of active threads
     
     // Recalculate load average
     
-    load_avg = la_past_weight*load_avg + la_cur_weight*ready_threads,
+    //printf("past:%d weighted:%d by:%d  \n",load_avg, FP_MUL(la_past_weight,load_avg), la_past_weight);
     
-    printf("New load avg:%d\n", thread_get_load_avg());
+    load_avg = FP_ADD(FP_MUL(la_past_weight,load_avg),FP_MULI(la_cur_weight,ready_threads));
+    
+    //printf("ready_threads:%d  load_avg:%d\n", ready_threads, thread_get_load_avg());
     
     // Recalculate recent_cpu
     thread_foreach(&thread_calc_recent_cpu,NULL);
@@ -321,14 +343,27 @@ void thread_wake(int64_t timer_ticks)
  
   // delete from lis
   if(!list_empty(&waiting_list)){
+    
+    
     //printf("list not empty\n");
+    
+    //printf("List size %d\n",list_size(&waiting_list));
    // sema_up(&list_entry(list_pop_front(&waiting_list),struct sleeper, elem)->waiting_semaphore);
 	struct list_elem *e;
 	struct sleeper *tmp_sleeper;
+	
+	//int j = 0;
+	
 	for (e= list_begin (&waiting_list); e!= list_end (&waiting_list); e = list_next (e))
 	{
+		//j++;
+		
+		
 		tmp_sleeper = list_entry (e, struct sleeper, elem);
-		if (tmp_sleeper->sleep_time > timer_ticks) break;
+		if (tmp_sleeper->sleep_time > timer_ticks) {
+		  //printf("List length was %d of %d\n",j,list_size(&waiting_list));
+		  break;
+		}
 		else{
 			sema_up(&tmp_sleeper->waiting_semaphore); 			
 		}
