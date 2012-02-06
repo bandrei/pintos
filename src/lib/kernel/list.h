@@ -135,6 +135,7 @@ struct list_elem *list_rend (struct list *);
 
 struct list_elem *list_head (struct list *);
 struct list_elem *list_tail (struct list *);
+bool is_in_list(struct list_elem *);
 
 /* List insertion. */
 void list_insert (struct list_elem *, struct list_elem *);
