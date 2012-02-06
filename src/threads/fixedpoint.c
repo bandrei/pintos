@@ -1,5 +1,9 @@
 #include "fixedpoint.h"
 
+inline fp_int fp_clampi(fp_int n,fp_int l,fp_int h) {
+  return n<l ? l : ( n>h ? h : n );
+}
+
 inline fixed fp_fromint(fp_int n) {
 	return n * FP_F;
 } 

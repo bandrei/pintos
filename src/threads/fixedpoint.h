@@ -12,6 +12,7 @@ static fp_int const _fp_f = 0x1<<(FP_COUNT-1);
 #define FP_F _fp_f
 // FP_F = 2^FP_COUNT
 
+inline fp_int fp_clampi(fp_int n,fp_int l,fp_int h);
 inline fixed fp_fromint(fp_int n);
 inline fp_int fp_floor(fixed x);
 inline fp_int fp_round(fixed x);
@@ -25,6 +26,13 @@ inline fixed fp_subi(fixed x, fp_int n);
 inline fixed fp_muli(fixed x, fp_int n);
 inline fixed fp_divi(fixed x, fp_int n);
 
+/**
+ * FP_CLAMPI(N,L,H)
+ * clamp fp_int N in range [L,H]
+ * return fp_int
+ **/
+
+#define FP_CLAMPI(N,L,H) (N)<(L) ? (L) : ( (N)>(H) ? (H) : (N) )
 
 /**
  * FP_FROMINT(N)

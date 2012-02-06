@@ -60,6 +60,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
 static fixed la_past_weight;
 static fixed la_cur_weight;
+static fixed fp_pri_max;
 
 /* BSD */
 static fixed load_avg;
@@ -112,9 +113,9 @@ thread_init (void)
   if (thread_mlfqs) {
     thread_tick = &thread_tick_mlfqs;
     thread_set_priority = &thread_set_priority_mlfqs;
-    la_past_weight = FP_DIV(59,60);
-    la_cur_weight = FP_DIV(1,60);
-    
+    la_past_weight = FP_DIV(FP_FROMINT(59),FP_FROMINT(60));
+    la_cur_weight = FP_DIV(FP_FROMINT(1),FP_FROMINT(60));
+    fp_pri_max = FP_FROMINT(PRI_MAX);
     load_avg = FP_FROMINT(0);
     
     
@@ -203,16 +204,16 @@ inline void thread_calc_recent_cpu (struct thread *t, void *aux UNUSED) {
   fixed x = (load_avg<<1);
   x = FP_DIV(x,FP_ADDI(x,1));
   
-  t->recent_cpu = FP_ADD(FP_MUL(x,t->recent_cpu),t->nice);
+  t->recent_cpu = FP_ADDI(FP_MUL(x,t->recent_cpu),t->nice);
 }
 
 inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
   // PRE: Interrupts are off
-  t->priority = FP_FLOOR(
-    FP_SUB(PRI_MAX,
-      FP_ADD(t->recent_cpu>>2,t->nice<<1)
+  t->priority = FP_CLAMPI(FP_FLOOR(
+    FP_SUB(fp_pri_max,
+      FP_ADD((t->recent_cpu)>>2,FP_FROMINT(t->nice)<<1)
     )
-  );
+  ),PRI_MIN,PRI_MAX);
   // Floor(PRI_MAX - recent_cpu/4 - nice/2);
 }
 
@@ -619,7 +620,7 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  (thread_current() -> nice) = FP_CLAMPI(nice,NICE_MIN,NICE_MAX);
 }
 
 /* Returns the current thread's nice value. */
