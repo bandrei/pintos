@@ -5,6 +5,8 @@
 #include <list.h>
 #include "synch.h"
 #include <stdint.h>
+#include "../devices/timer.h"
+#include "fixedpoint.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -97,6 +99,10 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    
+    /* BSD */
+    fixed recent_cpu;
+    int nice;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -125,9 +131,9 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-typedef float(*fp_thread_tick)(int64_t);
-
-fp_thread_tick thread_tick (int64_t);
+typedef void fp_thread_tick (int64_t ticks);
+//typedef void(*fp_thread_tick)(int64_t);
+fp_thread_tick *thread_tick;
 
 void thread_sleep(int64_t);
 void thread_wake(int64_t);
@@ -151,7 +157,10 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
-void thread_set_priority (int);
+
+typedef void fp_thread_set_priority (int new_priority);
+//typedef void(*fp_thread_set_priority)(int);
+fp_thread_set_priority *thread_set_priority;
 
 int thread_get_nice (void);
 void thread_set_nice (int);
