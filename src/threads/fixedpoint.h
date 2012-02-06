@@ -8,7 +8,7 @@ typedef int64_t fixed_large;
 #define FP_COUNT 14
 // sign bit, 17bits . 14 bits
 
-static fp_int const _fp_f = 0x1<<(FP_COUNT-1);
+static fp_int const _fp_f = 0x1<<FP_COUNT;
 #define FP_F _fp_f
 // FP_F = 2^FP_COUNT
 

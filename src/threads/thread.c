@@ -113,10 +113,15 @@ thread_init (void)
   if (thread_mlfqs) {
     thread_tick = &thread_tick_mlfqs;
     thread_set_priority = &thread_set_priority_mlfqs;
-    la_past_weight = FP_DIV(FP_FROMINT(59),FP_FROMINT(60));
-    la_cur_weight = FP_DIV(FP_FROMINT(1),FP_FROMINT(60));
+    la_past_weight = FP_DIVI(FP_FROMINT(59),60);
+    la_cur_weight = FP_DIVI(FP_FROMINT(1),60);
     fp_pri_max = FP_FROMINT(PRI_MAX);
     load_avg = FP_FROMINT(0);
+    
+    printf("59: %d\n",FP_FROMINT(59));
+    printf("fp_f: %d\n",FP_F);
+    
+    printf("Past: %d Cur: %d\n",la_past_weight, la_cur_weight);
     
     
   } else {
@@ -244,10 +249,14 @@ thread_tick_mlfqs (int64_t ticks)
     // Count number of ready threads
     int ready_threads = 0;
     thread_foreach(&thread_count_ready,&ready_threads);
+    printf("Ready threads: %d\n", ready_threads);
     // POST: ready_threads = number of active threads
     
     // Recalculate load average
+    
     load_avg = la_past_weight*load_avg + la_cur_weight*ready_threads,
+    
+    printf("New load avg:%d\n", thread_get_load_avg());
     
     // Recalculate recent_cpu
     thread_foreach(&thread_calc_recent_cpu,NULL);
