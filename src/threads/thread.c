@@ -194,7 +194,7 @@ thread_tick_ps (int64_t ticks)
 inline void thread_count_ready (struct thread *t, void *aux) {
   int *count = (int *) aux;
   
-  if ((t git != idle_thread) && 
+  if ((t != idle_thread) && 
     (t->status == THREAD_READY || t->status == THREAD_RUNNING)
   ) {
     (*count)++;
