@@ -63,7 +63,8 @@ fixed la_cur_weight;
 fixed fp_pri_max;
 
 /* BSD */
-static fixed load_avg;
+static volatile fixed load_avg;
+static volatile fixed ready_threads;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -81,6 +82,10 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+
+inline static tid_t
+_thread_create (const char *name, int priority,
+               thread_func *function, void *aux, struct thread **t_ref);
 
 void thread_tick_ps (int64_t ticks);
 void thread_tick_mlfqs (int64_t ticks);
@@ -142,6 +147,7 @@ thread_init (void)
     la_cur_weight = FP_DIVI(FP_FROMINT(1),60);
     fp_pri_max = FP_FROMINT(PRI_MAX);
     load_avg = FP_FROMINT(0);
+    ready_threads = 0;
     
     printf("Past: %d Cur: %d\n",la_past_weight, la_cur_weight);
     
@@ -167,6 +173,7 @@ thread_init (void)
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
+  ready_threads++;
   if (thread_mlfqs) {
     initial_thread->nice = 0;
     initial_thread->recent_cpu=0;
@@ -183,7 +190,8 @@ thread_start (void)
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
-  thread_create ("idle", PRI_MIN, idle, &idle_started);
+  idle_thread = NULL;
+  _thread_create ("idle", PRI_MIN, idle, &idle_started, &idle_thread);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -244,27 +252,18 @@ inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
     ) \
   ),PRI_MIN,PRI_MAX)
   
+  int pnew = MLFQS_CALC_PRIORITY;
+  
   if (t->status == THREAD_READY) {
-    
-    int pnew = MLFQS_CALC_PRIORITY;
-    
     if (pnew != t->priority) {
       // PRE: t->elem is an element of priority_list[t->priority]
       // TODO: Make this a debug assertion
       list_remove(&(t->elem));
-      t->priority = pnew;
-	  t->init_priority = pnew; //init priority as well
+      t->init_priority = t->priority = pnew;
       list_push_back(&(priority_list[pnew]), &(t->elem));
     }
   } else {
-	t->init_priority = MLFQS_CALC_PRIORITY;
-    t->priority = MLFQS_CALC_PRIORITY;
-  }
-  
-  
-  
-  if (t->status == THREAD_READY) {
-    
+    t->init_priority = t->priority = pnew;
   }
   
   // Floor(PRI_MAX - recent_cpu/4 - nice/2);
@@ -294,10 +293,16 @@ thread_tick_mlfqs (int64_t ticks)
   
   if (ticks%TIMER_FREQ == 0) {
     
+    
     // Count number of ready threads
-    int ready_threads = 0;
-    THREAD_FOREACH(thread_count_ready,&ready_threads);
+    int ready_threads_check = 0;
+    THREAD_FOREACH(thread_count_ready,&ready_threads_check);
     // POST: ready_threads = number of active threads
+    if (ready_threads_check != ready_threads) {
+      printf("!!! ready_threads was %d (should be %d)\n",ready_threads,ready_threads_check);
+      ASSERT(false);
+    }
+    
     
     // Recalculate load average
     
@@ -344,6 +349,9 @@ void thread_sleep(int64_t ticks)
   //lock acquired on the list
   //put things in the list
   //TODO: should declare them using malloc
+  
+  
+  // TODO: check for malloc() and free() errors!!
  
   struct sleeper *sleeper = malloc(sizeof(struct sleeper));
   /*if(sleeper == NULL){
@@ -462,7 +470,18 @@ thread_print_stats (void)
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
 thread_create (const char *name, int priority,
-               thread_func *function, void *aux) 
+               thread_func *function, void *aux) {
+  return _thread_create (name, priority,
+               function, aux, NULL);
+}
+
+/**
+ * Guarantees that *t_ref will be set to the new *struct thread
+ * before the thread can be scheduled
+ **/
+inline static tid_t
+_thread_create (const char *name, int priority,
+               thread_func *function, void *aux, struct thread **t_ref) 
 {
   struct thread *t;
   struct thread *parent;
@@ -518,6 +537,12 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   intr_set_level (old_level);
+  
+  if (t_ref != NULL) {
+    // If we were given a reference to set
+    // this occurs before scheduling the thread
+    *t_ref = t;
+  }
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -537,8 +562,17 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
-
-  thread_current ()->status = THREAD_BLOCKED;
+  
+  struct thread * t = thread_current ();
+  
+  ASSERT(t->status != THREAD_DYING);
+  
+  if (t->status != THREAD_BLOCKED) {
+    t->status = THREAD_BLOCKED;
+    
+    if (t != idle_thread)
+      ready_threads--;
+  }
   schedule ();
 }
 
@@ -562,6 +596,7 @@ thread_unblock (struct thread *t)
   list_push_back ( &( priority_list[t->priority] ), &(t->elem));
   //list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  if (t != idle_thread) ready_threads++;
   intr_set_level (old_level);
 }
 
@@ -613,8 +648,13 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
-  thread_current ()->status = THREAD_DYING;
+  
+  struct thread * t = thread_current();
+  
+  list_remove (&t->allelem);
+  ASSERT(t->status != THREAD_DYING);
+  t->status = THREAD_DYING;
+  ready_threads--;
   schedule ();
   NOT_REACHED ();
 }
@@ -729,7 +769,7 @@ static void
 idle (void *idle_started_ UNUSED) 
 {
   struct semaphore *idle_started = idle_started_;
-  idle_thread = thread_current ();
+  //idle_thread = thread_current ();
   sema_up (idle_started);
 
   for (;;) 
