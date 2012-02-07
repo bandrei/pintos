@@ -135,6 +135,12 @@ struct list_elem *list_rend (struct list *);
 
 struct list_elem *list_head (struct list *);
 struct list_elem *list_tail (struct list *);
+//extra function used to check if an element is 
+//in any list. In order for it to work properly
+//when an element is removed from the list its
+//prev and next pointers need to be set to NULL
+//(note: this function is used only in conjuction
+//with the code for lock_list in synch.c)
 bool is_in_list(struct list_elem *);
 
 /* List insertion. */
