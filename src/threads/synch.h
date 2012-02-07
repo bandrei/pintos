@@ -25,8 +25,7 @@ void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);
 void sema_up (struct semaphore *);
 void sema_self_test (void);
-bool priority_order(const struct list_elem *a, const struct list_elem *b, void *aux);
-bool lock_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux); 
+
 
 /* Lock. */
 struct lock 
@@ -36,12 +35,6 @@ struct lock
 	int priority;
 	struct list_elem elem;		/* will e */
   };
-struct lock_priority
-{
-	struct lock *l;
-	//int priority;
-	struct list_elem lock_elem;
-};
 
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);
@@ -49,7 +42,7 @@ bool lock_try_acquire (struct lock *);
 void lock_release (struct lock *);
 bool lock_held_by_current_thread (const struct lock *);
 void lock_donate(struct lock *);
-int lock_donate_restore(struct lock *);
+int lock_donate_restore(struct lock *); //return the thread priority after donation removal
 
 /* Condition variable. */
 struct condition 

@@ -94,11 +94,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-	int init_priority;					/* Initial priority when donation starts */
-	struct lock *try_lock;				/* Hold the lock the current thread is locked on */
-	struct list lock_list;
+	int init_priority;					/* Initial priority when donation starts (i.e. priority to revert to 
+										when all of the donations have been removed */
+	struct lock *try_lock;				/* Hold the lock the current thread is trying to lock on */
+	struct list lock_list;				/* Hold a list of locks that another thread is trying to acquire
+										from the current thread */
     struct list_elem allelem;           /* List element for all threads list. */
-   // struct
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -135,7 +136,6 @@ void thread_init (void);
 void thread_start (void);
 
 typedef void fp_thread_tick (int64_t ticks);
-//typedef void(*fp_thread_tick)(int64_t);
 fp_thread_tick *thread_tick;
 
 void thread_sleep(int64_t);
