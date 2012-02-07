@@ -97,7 +97,12 @@ void thread_set_priority_ps (int new_priority);
 
 inline void thread_calc_recent_cpu (struct thread *t, void *aux UNUSED);
 inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED);
+
+//#define READY_THREADS_CHECK 1
+
+#ifdef READY_THREADS_CHECK
 inline void thread_count_ready (struct thread *t, void *aux);
+#endif
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
@@ -226,7 +231,7 @@ thread_tick_ps (int64_t ticks)
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
 }
-
+#ifdef READY_THREADS_CHECK
 inline void thread_count_ready (struct thread *t, void *aux) {
   int *count = (int *) aux;
   
@@ -236,6 +241,7 @@ inline void thread_count_ready (struct thread *t, void *aux) {
     (*count)++;
   }
 }
+#endif
 
 inline void thread_calc_recent_cpu (struct thread *t, void *aux UNUSED) {
   //PRE: has been called on a 1 second interrupt
@@ -297,6 +303,8 @@ thread_tick_mlfqs (int64_t ticks)
   if (ticks%TIMER_FREQ == 0) {
     
     
+    
+#ifdef READY_THREADS_CHECK    
     // Count number of ready threads
     int ready_threads_check = 0;
     THREAD_FOREACH(thread_count_ready,&ready_threads_check);
@@ -305,7 +313,7 @@ thread_tick_mlfqs (int64_t ticks)
       printf("!!! ready_threads was %d (should be %d)\n",ready_threads,ready_threads_check);
       ASSERT(false);
     }
-    
+#endif    
     
     // Recalculate load average
     
