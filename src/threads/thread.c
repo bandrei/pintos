@@ -29,7 +29,7 @@ static struct lock waiting_lock;
 //array of priorities containing links of threads
 //should only contain ready threads (i.e. THREAD_READY)
 static struct list priority_list [PRI_MAX+1];  
-													
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -312,18 +312,15 @@ thread_tick_mlfqs (int64_t ticks)
     THREAD_FOREACH(thread_count_ready,&ready_threads_check);
     // POST: ready_threads = number of active threads
     if (ready_threads_check != ready_threads) {
-      printf("!!! ready_threads was %d (should be %d)\n",ready_threads,ready_threads_check);
+      printf("!!! ready_threads was %d (should be %d)\n",
+	     ready_threads,ready_threads_check);
       ASSERT(false);
     }
 #endif    
     
     // Recalculate load average
-    
-    //printf("past:%d weighted:%d by:%d  \n",load_avg, FP_MUL(la_past_weight,load_avg), la_past_weight);
-    
-    load_avg = FP_ADD(FP_MUL(la_past_weight,load_avg),FP_MULI(la_cur_weight,ready_threads));
-    
-    //printf("ready_threads:%d  load_avg:%d\n", ready_threads, thread_get_load_avg());
+    load_avg = FP_ADD(FP_MUL(la_past_weight,load_avg),
+		      FP_MULI(la_cur_weight,ready_threads));
     
     // Recalculate recent_cpu
     THREAD_FOREACH(thread_calc_recent_cpu,NULL);
@@ -333,7 +330,7 @@ thread_tick_mlfqs (int64_t ticks)
     THREAD_FOREACH(thread_calc_priority_mlfqs,NULL);
   }
 
-  // wake up everything()
+  // wake up everything
   thread_wake(ticks);
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -350,45 +347,44 @@ void thread_swap(struct thread *to_swap)
 	enum intr_level old_level = intr_disable();
 	list_remove(&to_swap->elem);
 	to_swap->priority = thread_current()->priority;
-	list_push_back(&priority_list[thread_current()->priority],&to_swap->elem);
+	list_push_back(&priority_list[thread_current()->priority],
+		       &to_swap->elem);
 	intr_set_level(old_level);
 }
 
 void thread_sleep(int64_t ticks)
-{  
-  //printf("Thread scheduled for sleep %d \n", list_size(&waiting_list));
-  
-  //lock acquired on the list
-  //put things in the list
-  //TODO: should declare them using malloc
-  
-  
-  // TODO: check for malloc() and free() errors!!
- 
+{ 
   struct sleeper *sleeper = malloc(sizeof(struct sleeper));
-  /*if(sleeper == NULL){
-  	//out of memory check
-  }*/
-  sleeper->sleep_time = ticks;
-  sema_init(&sleeper->waiting_semaphore,0);
-  
-  
-  lock_acquire(&waiting_lock);
-  list_insert_ordered(&waiting_list, &sleeper->elem, &sleep_less, NULL);  
-  lock_release(&waiting_lock);
+  if(sleeper == NULL){
+    // Out of memory, we have to busy wait
+      
+      while (timer_ticks() < ticks) {
+	thread_yield ();
+      }
+    
+  } else {
+    sleeper->sleep_time = ticks;
+    sema_init(&sleeper->waiting_semaphore,0);
+    
+    
+    lock_acquire(&waiting_lock);
+    list_insert_ordered(&waiting_list, &sleeper->elem, &sleep_less, NULL);  
+    lock_release(&waiting_lock);
 
-  //put the thread to sleep  
-  sema_down(&sleeper->waiting_semaphore);
+    //put the thread to sleep  
+    sema_down(&sleeper->waiting_semaphore);
 
-  
-  lock_acquire(&waiting_lock);
-  list_remove(&sleeper->elem);
-  free(sleeper);
-  lock_release(&waiting_lock);
+    
+    lock_acquire(&waiting_lock);
+    list_remove(&sleeper->elem);
+    free(sleeper);
+    lock_release(&waiting_lock);
+  }
 }
 
 bool
-sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+sleep_less(const struct list_elem *a, const struct list_elem *b,
+	   void *aux UNUSED)
 {
   return list_entry(a,struct sleeper, elem)->sleep_time <  
 		list_entry(b,struct sleeper, elem) -> sleep_time;
@@ -399,32 +395,22 @@ inline void thread_wake(int64_t timer_ticks)
   //search through the waiting list
   //and pick the elements that are to be woken up
  
-  if(!list_empty(&waiting_list)){
-    
-  
-	struct list_elem *e;
-	struct sleeper *tmp_sleeper;
-	
-	
-	//iterate throught the list of sleepers and wake up each thread
-	//that needs waking (using sema_up). Break the loop early if
-	//possible as the list is ordered in ascending order of sleep time
-	for (e= list_begin (&waiting_list); e!= list_end (&waiting_list); e = list_next (e))
-	{	
-		
-		
-		tmp_sleeper = list_entry (e, struct sleeper, elem);
-		if (tmp_sleeper->sleep_time > timer_ticks) {
-		  break;
-		}
-		else{
-			sema_up(&tmp_sleeper->waiting_semaphore); 			
-		}
-      	}
-	}
-  
- 
-  
+  if(!list_empty(&waiting_list)) {
+    struct list_elem *e;
+    struct sleeper *tmp_sleeper;
+    //iterate throught the list of sleepers and wake up each thread
+    //that needs waking (using sema_up). Break the loop early if
+    //possible as the list is ordered in ascending order of sleep time
+    for (e= list_begin (&waiting_list); e!= list_end (&waiting_list);
+	 e = list_next (e)) {	
+      tmp_sleeper = list_entry (e, struct sleeper, elem);
+      if (tmp_sleeper->sleep_time > timer_ticks) {
+	break;
+      } else {
+	sema_up(&tmp_sleeper->waiting_semaphore); 			
+      }
+    }
+  }
 }
 
 /* Prints thread statistics. */
@@ -668,39 +654,29 @@ thread_set_priority_mlfqs (int new_priority UNUSED)
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-
-
 void
 thread_set_priority_ps (int new_priority) 
 {
-  	enum intr_level old_level;
-	old_level = intr_disable();
-  	struct thread *cur_thread = thread_current();
-		cur_thread->init_priority = new_priority;
-	if(list_empty(&cur_thread->lock_list))
-	{
-	cur_thread->priority = new_priority;
-	struct list *curlist;
-	int i;
-	for(i = PRI_MAX; i>cur_thread->priority; i--)
- 	{
-		curlist = &(priority_list[i]);
-		if(!list_empty(curlist))
-		{
-			
-				
-				break;			
-			
-		}
-	}
-	}
-	intr_set_level(old_level);
-	thread_yield();
-  //thread_current ()->priority = new_priority;
-  //need to remove it from the current priority list
-  //and put it in the new priority list
-  //need to yield the thread if there is another thread 
-  //with a higher priority (i.e. stop executing)
+  enum intr_level old_level;
+  old_level = intr_disable();
+  struct thread *cur_thread = thread_current();
+  cur_thread->init_priority = new_priority;
+  if(list_empty(&cur_thread->lock_list))
+  {
+    cur_thread->priority = new_priority;
+    struct list *curlist;
+    int i;
+    for(i = PRI_MAX; i>cur_thread->priority; i--)
+    {
+      curlist = &(priority_list[i]);
+      if(!list_empty(curlist))
+      {
+	break;
+      }
+    }
+  }
+  intr_set_level(old_level);
+  thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -751,7 +727,6 @@ static void
 idle (void *idle_started_ UNUSED) 
 {
   struct semaphore *idle_started = idle_started_;
-  //idle_thread = thread_current ();
   sema_up (idle_started);
 
   for (;;) 
@@ -830,8 +805,6 @@ init_thread (struct thread *t, const char *name, int priority)
   }
   
   t->try_lock = NULL;
-  //t->lock_list = malloc(sizeof(struct list));
-  //probably good to check for malloc here"
   list_init(&t->lock_list);
   t->magic = THREAD_MAGIC;
 
@@ -862,28 +835,22 @@ static struct thread *
 next_thread_to_run (void) 
 {
   static struct list * curlist;
-  //static struct list_elem *e;
   
   struct thread * thread_to_run = NULL;
   int i;
   for (i = PRI_MAX; i >=0; i--) {
-      curlist = &(priority_list[i]);
-      if(!list_empty(curlist))
-	{
-		//printf("1");
-		thread_to_run = list_entry (list_pop_front (curlist), struct thread, elem);
-		break;
-	}
+    curlist = &(priority_list[i]);
+    if(!list_empty(curlist))
+      {
+	thread_to_run = list_entry (list_pop_front (curlist),
+				    struct thread, elem);
+	break;
+      }
    }
    if(thread_to_run == NULL)
 	return idle_thread;
    else
 	return thread_to_run;
-  /*if (list_empty (&ready_list))
-    return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
-  */
 }
 
 /* Completes a thread switch by activating the new thread's page

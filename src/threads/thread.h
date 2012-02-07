@@ -94,12 +94,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-	int init_priority;					/* Initial priority when donation starts (i.e. priority to revert to 
-										when all of the donations have been removed */
-	struct lock *try_lock;				/* Hold the lock the current thread is trying to lock on */
-	struct list lock_list;				/* Hold a list of locks that another thread is trying to acquire
-										from the current thread */
-    struct list_elem allelem;           /* List element for all threads list. */
+    int init_priority;			/* Initial priority when donation starts (i.e. priority to revert to 
+					   when all of the donations have been removed */
+    struct lock *try_lock;		/* Hold the lock the current thread is trying to lock on */
+    struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
+					   from the current thread */
+    struct list_elem allelem;		/* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -116,16 +116,6 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
-
-
-/* struct lock_donor
-{
-   int priority;  //holds the priority no.
-   struct list_elem elem;	//used in identifying priority
-}
-*/
-
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -163,13 +153,13 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 
 typedef void fp_thread_set_priority (int new_priority);
-//typedef void(*fp_thread_set_priority)(int);
 fp_thread_set_priority *thread_set_priority;
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-bool sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool sleep_less(const struct list_elem *a, const struct list_elem *b,
+		void *aux UNUSED);
 
 #endif /* threads/thread.h */

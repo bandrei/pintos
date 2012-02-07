@@ -12,20 +12,6 @@ static fp_int const _fp_f = 0x1<<FP_COUNT;
 #define FP_F _fp_f
 // FP_F = 2^FP_COUNT
 
-inline fp_int fp_clampi(fp_int n,fp_int l,fp_int h);
-inline fixed fp_fromint(fp_int n);
-inline fp_int fp_floor(fixed x);
-inline fp_int fp_round(fixed x);
-inline fixed fp_inc(fixed x);
-inline fixed fp_add(fixed x, fixed y);
-inline fixed fp_sub(fixed x, fixed y);
-inline fixed fp_mul(fixed x, fixed y);
-inline fixed fp_div(fixed x, fixed y);
-inline fixed fp_addi(fixed x, fp_int n);
-inline fixed fp_subi(fixed x, fp_int n);
-inline fixed fp_muli(fixed x, fp_int n);
-inline fixed fp_divi(fixed x, fp_int n);
-
 /**
  * FP_CLAMPI(N,L,H)
  * clamp fp_int N in range [L,H]
@@ -39,18 +25,14 @@ inline fixed fp_divi(fixed x, fp_int n);
  * convert fp_int N to fixed
  * return fixed
  **/
- 
-
 
 #define FP_FROMINT(N) (N) * FP_F
-
 
 /**
  * FP_FLOOR(X)
  * round fixed X to 0
  * return fp_int
  **/
- 
 
 #define FP_FLOOR(X) (X) / FP_F
 
@@ -59,11 +41,14 @@ inline fixed fp_divi(fixed x, fp_int n);
  * round fixed X to nearest
  * return fp_int
  **/
-
  
 #define FP_ROUND(X) ((X) < 0) ? ((X) - (FP_F>>2))/FP_F : ((X) + (FP_F>>2))/FP_F
 
-
+/**
+ * FP_INC(X)
+ * incremet fixed X by 1
+ * return fixed
+ **/
 
 #define FP_INC(X) (X) + FP_F
 
@@ -75,9 +60,7 @@ inline fixed fp_divi(fixed x, fp_int n);
 
 #define FP_ADD(X,Y) (X) + (Y)
 
-
 #define FP_SUB(X,Y) (X) - (Y)
-
 
 #define FP_MUL(X,Y) (fixed) ( ((fixed_large) (X)) * (Y) / FP_F )
 
@@ -91,9 +74,7 @@ inline fixed fp_divi(fixed x, fp_int n);
 
 #define FP_ADDI(X,N) (X) + (N) * FP_F
 
-
 #define FP_SUBI(X,N) (X) - (N) * FP_F
-
 
 #define FP_MULI(X,N) (X) * (N)
 

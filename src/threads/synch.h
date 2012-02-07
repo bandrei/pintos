@@ -42,7 +42,8 @@ bool lock_try_acquire (struct lock *);
 void lock_release (struct lock *);
 bool lock_held_by_current_thread (const struct lock *);
 void lock_donate(struct lock *);
-int lock_donate_restore(struct lock *); //return the thread priority after donation removal
+int lock_donate_restore(struct lock *);
+//return the thread priority after donation removal
 
 /* Condition variable. */
 struct condition 
