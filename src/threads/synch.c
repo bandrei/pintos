@@ -77,7 +77,7 @@ sema_down (struct semaphore *sema)
   intr_set_level (old_level);
 }
 
-bool priority_order(const struct list_elem *a, const struct list_elem *b, void *aux)
+bool priority_order(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
 	struct thread *t1 = list_entry(a,struct thread,elem);
 	struct thread *t2 = list_entry(b,struct thread,elem);
@@ -124,7 +124,7 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    struct thread *first_awake;
+    struct thread *first_awake = NULL;
 	struct thread *tmp_thread;
 	struct list_elem *e;
     int max_pri = 0;
@@ -320,7 +320,7 @@ void lock_donate(struct lock *cur_lock)
 	//alternative while loop
 	struct lock *next_lock = cur_lock;
 	struct thread *cur_thread = thread_current();
-	struct thread *compare_to_thread;
+	//struct thread *compare_to_thread;
 	int depth = 0;
 	/*
 		//Working code
@@ -555,14 +555,15 @@ int lock_donate_restore(struct lock *cur_lock)
 	
 }
 
+/*
 bool lock_priority_less(const struct list_elem *a, const struct list_elem *b,
-						void *aux)
+						void *aux UNUSED)
 {
 	struct lock_priority *l1 = list_entry(a,struct lock_priority, lock_elem);
 	struct lock_priority *l2 = list_entry(b,struct lock_priority, lock_elem);
 	return l1->priority < l2->priority;
 }
-
+*/
 
 /* One semaphore in a list. */
 struct semaphore_elem 
@@ -645,10 +646,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty (&cond->waiters)) 
   {
+	// WARNING: Possible race condition here since interrupts are on?
 	struct list_elem *e;
 	struct semaphore_elem *sem;
 	struct thread *t;
-	struct semaphore_elem *sem_to_wake;
+	struct semaphore_elem *sem_to_wake = NULL;
 	int max_pri = 0;
 	for (e= list_begin (&cond->waiters); e!= list_end (&cond->waiters); e = list_next (e))
 	{

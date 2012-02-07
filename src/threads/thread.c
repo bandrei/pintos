@@ -91,6 +91,31 @@ inline void thread_calc_recent_cpu (struct thread *t, void *aux UNUSED);
 inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED);
 inline void thread_count_ready (struct thread *t, void *aux);
 
+/* Invoke function 'func' on all threads, passing along 'aux'.
+   This function must be called with interrupts off. */
+
+// Macro version for use with an inlineable thread_action_func
+
+#define THREAD_FOREACH(FUNC,AUX) do {			\
+  struct list_elem *e;							\
+									\
+  ASSERT (intr_get_level () == INTR_OFF);				\
+									\
+  for (e = list_begin (&all_list); e != list_end (&all_list);		\
+	e = list_next (e))						\
+    {									\
+      struct thread *t = list_entry (e, struct thread, allelem);	\
+      FUNC (t, AUX);							\
+    }									\
+									\
+} while (0)
+
+void
+thread_foreach (thread_action_func *func, void *aux)
+{
+  THREAD_FOREACH(func,aux);
+}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -271,7 +296,7 @@ thread_tick_mlfqs (int64_t ticks)
     
     // Count number of ready threads
     int ready_threads = 0;
-    thread_foreach(&thread_count_ready,&ready_threads);
+    THREAD_FOREACH(thread_count_ready,&ready_threads);
     // POST: ready_threads = number of active threads
     
     // Recalculate load average
@@ -283,11 +308,11 @@ thread_tick_mlfqs (int64_t ticks)
     //printf("ready_threads:%d  load_avg:%d\n", ready_threads, thread_get_load_avg());
     
     // Recalculate recent_cpu
-    thread_foreach(&thread_calc_recent_cpu,NULL);
+    THREAD_FOREACH(thread_calc_recent_cpu,NULL);
   }
   
   if (ticks%4 == 0) {
-    thread_foreach(&thread_calc_priority_mlfqs,NULL);
+    THREAD_FOREACH(thread_calc_priority_mlfqs,NULL);
   }
 
   // wake up everything()
@@ -611,23 +636,6 @@ thread_yield (void)
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
-}
-
-/* Invoke function 'func' on all threads, passing along 'aux'.
-   This function must be called with interrupts off. */
-void
-thread_foreach (thread_action_func *func, void *aux)
-{
-  struct list_elem *e;
-
-  ASSERT (intr_get_level () == INTR_OFF);
-
-  for (e = list_begin (&all_list); e != list_end (&all_list); 
-	e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      func (t, aux);
-    }
 }
 
 void

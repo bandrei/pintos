@@ -7,7 +7,7 @@
 /* A counting semaphore. */
 struct semaphore 
   {
-    unsigned value;             /* Current value. */
+    volatile unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
   };
   
@@ -39,7 +39,7 @@ struct lock
 struct lock_priority
 {
 	struct lock *l;
-	int priority;
+	//int priority;
 	struct list_elem lock_elem;
 };
 
