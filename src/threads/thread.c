@@ -231,6 +231,8 @@ thread_tick_ps (int64_t ticks)
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
 }
+
+
 #ifdef READY_THREADS_CHECK
 inline void thread_count_ready (struct thread *t, void *aux) {
   int *count = (int *) aux;
@@ -392,7 +394,7 @@ sleep_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSE
 		list_entry(b,struct sleeper, elem) -> sleep_time;
 }
 
-void thread_wake(int64_t timer_ticks)
+inline void thread_wake(int64_t timer_ticks)
 {
   //search through the waiting list
   //and pick the elements that are to be woken up
