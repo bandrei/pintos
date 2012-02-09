@@ -33,6 +33,7 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -116,6 +117,12 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
+	/*
+		use for loops instead of list_max function
+		as it is more efficient, which is quite an 
+		important aspect, as at this point interrupts
+		are disabled
+	*/
     struct thread *first_awake = NULL;
     struct thread *tmp_thread;
     struct list_elem *e;
@@ -135,6 +142,7 @@ sema_up (struct semaphore *sema)
   }
   sema->value++;
   intr_set_level (old_level);
+  //yield the thread as soon as possible
   if(intr_context())
   	intr_yield_on_return;
   if(old_level != INTR_OFF)
@@ -199,7 +207,6 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  lock->priority = PRI_MIN;
   (&lock->elem)->prev = NULL;
   (&lock->elem)->next = NULL;
   sema_init (&lock->semaphore, 1);
@@ -308,14 +315,13 @@ void lock_donate(struct lock *cur_lock)
 	int depth = 0; //should donate to up to 8 nested threads
 
 	while(depth<8 &&
-		next_lock->holder != cur_thread)
+		next_lock->holder != cur_thread && next_lock->holder->priority<cur_thread->priority)
 	{	
 	
-	  if(next_lock->holder->priority<cur_thread->priority){
-		  //memorize the priority in the lock
+	 
 		  //(can be changed at a later time by 
 		  //another donation)
-		  
+		   next_lock->priority = cur_thread->priority;
 		  //if the list is empty then no donation has taken place before
 		  //for the thread that holds the lock. Thus set the init_priority
 		  //of the thread that has the lock to its current priority	
@@ -335,10 +341,6 @@ void lock_donate(struct lock *cur_lock)
 			  next_lock->holder->priority = cur_thread->priority;
 			  
 		
-		}
-		if(next_lock->priority < cur_thread->priority){
-			 next_lock->priority = cur_thread->priority;
-		}
 		  depth++;
 		  //check if nested donation can take place
 		  if(next_lock->holder->try_lock!=NULL)
@@ -366,7 +368,6 @@ int lock_donate_restore(struct lock *cur_lock)
 	  //to NULL so that is_in_list function will work properly
 	  //on the next call on the same element (i.e. see list.c/list.h)
 	  (&cur_lock->elem)->prev = (&cur_lock->elem)->next = NULL;
-	  cur_lock->priority = PRI_MIN;
 
 	}
 	
@@ -472,27 +473,22 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty (&cond->waiters)) 
   {
-    struct list_elem *e;
-    struct semaphore_elem *sem;
-    struct thread *t;
-    struct semaphore_elem *sem_to_wake = NULL;
-    int max_pri = 0;
-    for (e= list_begin (&cond->waiters); e!= list_end (&cond->waiters); e = list_next (e))
-    {
-      sem = list_entry (e, struct semaphore_elem, elem);
-      if(!list_empty(&(sem->semaphore.waiters)))
-      {	
-	t= list_entry(list_front(&(sem->semaphore.waiters)),struct thread, elem);
-	if(t->priority>max_pri)
-	{
-	  max_pri = t->priority;
-	  sem_to_wake = sem;
-	}
-      }
-    }
+	struct semaphore_elem *sem_to_wake = 
+					list_entry(list_max(&cond->waiters,&cond_var_less, NULL),
+											struct semaphore_elem, elem);
     list_remove(&sem_to_wake->elem);
     sema_up(&sem_to_wake->semaphore);
   }
+}
+
+bool cond_var_less(const struct list_elem *a, const struct list_elem *b, void* aux){
+		
+	struct semaphore_elem *s1 = list_entry (a, struct semaphore_elem, elem);
+	struct semaphore_elem *s2 = list_entry (b, struct semaphore_elem, elem);
+	struct thread *t1 = list_entry(list_front(&(s1->semaphore.waiters)),struct thread, elem);
+	struct thread *t2 = list_entry(list_front(&(s2->semaphore.waiters)),struct thread, elem);
+	return t1->priority<t2->priority;
+		
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by

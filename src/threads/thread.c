@@ -662,7 +662,6 @@ thread_set_priority_ps (int new_priority)
   if(list_empty(&cur_thread->lock_list))
   {
     cur_thread->priority = new_priority;
-    struct list *curlist;
     
   }
   intr_set_level(old_level);

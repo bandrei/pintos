@@ -22,7 +22,7 @@ Alina Boghiu <ab3110@imperial.ac.uk>
 >> call could be quite high) the point was for most of the code
 >> to execute as fast as possible wher interrupts are disabled
 >> (so is the case when waking threads contained in
->> semaphores, cond vars and the waiting_list).
+>> semaphores, and the waiting_list).
 
 
                  ALARM CLOCK
@@ -136,10 +136,6 @@ the complexity of function calls and reducing the stack usage is required.
 
 ---- DATA STRUCTURES ----
 
->> B1: Copy here the declaration of each new or changed `struct' or
->> `struct' member, global or static variable, `typedef', or
->> enumeration.  Identify the purpose of each in 25 words or less.
-
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct thread
   {
@@ -207,7 +203,19 @@ int priority
 	that lock if its priority is higher than the already existing priority
 	of the lock
 
+struct list_elem elem
+	- used for inserting the lock in a list
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static struct list priority_list [PRI_MAX+1];  
+
+The variable will hold 64 priority lists that will be used by the threads,
+scheduling and the rest of the operating system. All of the THREAD_READY
+threads should be in one of these lists
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 >> B2: Explain the data structure used to track priority donation.
@@ -260,11 +268,67 @@ new priority: 20;	|new pri: 20|	|new pri: 0 |			|
 >> B3: How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
 
+For the case of locks and semaphores (as locks are using semaphores
+in their construction) when a thread has to be woken up by a call to
+sema_up() the list of waiters is traversed and the thread with the
+maximum priority is unblocked.
+
+In the case of condition variables where multiple semaphores are used
+(i.e. a semaphore for each thread that calls cond_wait()) the semaphore
+containing the maximum thread is upped (in this case the default list_max
+function is used in conjuction with cond_var_less to return the maximum
+semaphore as extreme time efficiency is not required here).
+
+
+In all of the cases sema_up will call thread_yield() as soon as possible
+if nod inside an interrupt (if in an external interrupt handler then 
+intr_yield_on_return() is called so that the thread yields when it returns from
+the interrupt handler) or if the interrupts are not disabled. This will allow
+the thread with the highest priority to be scheduled immediately if possible.
+
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
+Firstly, lock_acquire will disble interrupt prior to the start of the donation
+process and then check if the lock that the current thread is trying
+to acquire is indeed held by another thread. If such is the case then the current thread's
+try_lock member will point to this lock and the donation process is initiated by calling
+lock_donate.
+
+Lock donate will handle nested donation up to 8 nested threads as long as
+the thread that is being donated to is different from the current thread 
+(both conditions will prevent and will speed up the donation process ). 
+Also the priority donation process only takes place if the thread that is 
+donating has higher pirority than the thread it's donating to.
+Then the lock that is trying to be acquired records the priority of the donating thread
+and gets added to the lock_list of its holding thread. Then, if the holding thread is 
+THREAD_READY then thread_swap() is called and this function will move the holding thread 
+in the lists of ready threads otherwise its priroity gets changed but the thread is not moved
+to a new list/location.  If the holding thread is also trying to acquire another lock 
+(by checking try_lock) the process continues up to 8 times, otherwise
+the nested donation stops.
+
+It is important to note that if it is the case that the lock_list is empty then
+the init_priority field in the holding thread (i.e. the one that will receive the donation) 
+will be set to its priority prior to donation (this step is required when releasing the donations
+and there is nothing more to cascade through). Also a lock is only added once to the list,
+and if already in the list then its priority gets updated.
+
+Interrupts are renabled after the donation has completed.
+
+
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+
+When a lock is released it is removed from the lock_list of the holding thread.
+If the list is empty then lock_donate_restore will return the initial priority of
+the thread. Otherwise it will return the maximum priority recorded by the locks
+in lock_list (see the donation process above).
+Then the priority of the current thread is set to the new priority before calling sema_up.
+
+Like in the donation process the donation restoration process will disable and then re-enable
+interrupts.
 
 ---- SYNCHRONIZATION ----
 
@@ -272,10 +336,63 @@ new priority: 20;	|new pri: 20|	|new pri: 0 |			|
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+A potential race condition in thread_set_priority might arrise when a donation process
+is taking place. Although only the current thread can make use of thread_set_priority()
+during a donation the thread's priority could be changed and thus leaving the priority
+switching operations in a incosistent state and leading to undefined behaviour). 
+
+Therefore in order to avoid this and any other potential race conditions we have decided
+to disable interrupt for a very short period of time while manipulating the priority of
+the thread.
+
+Using a lock at this point might be inappropriate as for instance the thread could yield
+after acquiring the lock, but then another thread might at some point want to donate to
+this thread and since this thread has already acquired a lock to prevent priority change
+the donation process as the priority of the thread can no longer be modified thus leading
+to a potential deadlock situation.
+
+
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We have chosen this design due to the constraits of efficiency and also
+for reasons of simplicity as explained below:
+
+1. In the case of semaphores we have avoided using ordered insertion and
+other already existing list function. Due to priority donation and the priorities
+changing at any time keeping the waiters list of a semaphore ordered would require
+a lot of computational resources and thus slow the program significantly and even
+miss on some interrupts. Also calls like list_max are to avoided due to the fact
+that each function call adds to the complexity and also the operating system
+would have to jump to different memory locations to execute that function call
+whereas with our current implementation the code is trully inline. 
+	For the case of conditional variables (and sleeping threads as above) such
+constraints are not required as the signaling and waiting call are or should
+be used in a non-interrupted context and thus the small improvement in efficiency
+can be traded-off for a more clear code.
+
+2. We have modified the struct of the lock to hold a priority field and an elem field.
+This is due to the fact that it is easier during the donation restoration process
+to remove the locks from the lock_list of the holder thread and also dinamically change
+their recorded priority. This small trick saves a lot of both memory space and algorithm
+complexity.
+
+3. In the thread structure we have added 2 new fields. try_lock is used to allow nested
+donation and it is an easy way to record which lock a thread is trying to acquire and since
+threads are visible within the scope of the locks (i.e. by using lock.holder). init_priority
+records the priority of a thread before receiving its first donation. By adding these 2 fields
+a lot of complexity has been avoided by not creating separate data structures that would just
+store this information.
+
+4. We have used an array of size 64 to store 64 priority lists. This is due to the fact
+that this provides 64 adjacent memory location, that are usually faster to access when
+operating on this array and on the lists (i.e. for instance when next_thread_to_run() 
+iterates through the array to find the next non-empty list of threads). Also the lists provide
+functionalities for adding at the front or back at the list in constant time; same happens
+when popping the list. Thus the complexity of moving a thread in the ready lists is constant.
+
 
               ADVANCED SCHEDULER
               ==================
