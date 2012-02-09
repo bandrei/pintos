@@ -9,8 +9,8 @@
 >> Fill in the names and email addresses of your group members.
 
 Rory Allford <rda10@imperial.ac.uk>
-FirstName LastName <email@imperial.ac.uk>
-FirstName LastName <email@imperial.ac.uk>
+Alina Boghiu <ab3110@imperial.ac.uk>
+Andrei Bara <ab6610@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
 
@@ -30,10 +30,28 @@ FirstName LastName <email@imperial.ac.uk>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+New struct in synch.h:
+struct sleeper
+  {
+  int64_t sleep_time;
+  struct semaphore waiting_semaphore;
+  struct list_elem elem;
+  };
+
+Keeps track of all the sleeping threads.
+
+
+Modified:
+We are using waiting_list instead of ready_list.
+
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
+
+The timer_sleep() method calls thread_sleep() which puts the current thread to 
+sleep for 'ticks' number of timer ticks, adds the thread to the 'sleepers' list and 
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
@@ -59,6 +77,15 @@ FirstName LastName <email@imperial.ac.uk>
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+New memebers in struct threads:
+
+  int init_priority: 		Holds the initial priority to which the thread 
+				  reverts to after donation.
+  struct lock *try_lock:	Points to the lock the current thread is trying
+				  to lock on.
+  struct list lock_list:	Holds a list of locks that other threads are
+				  trying to acquires from the current thread.
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
