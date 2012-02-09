@@ -197,6 +197,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
+  lock->priority = PRI_MIN;
   (&lock->elem)->prev = NULL;
   (&lock->elem)->next = NULL;
   sema_init (&lock->semaphore, 1);
@@ -304,39 +305,44 @@ void lock_donate(struct lock *cur_lock)
 	struct thread *cur_thread = thread_current();
 	int depth = 0; //should donate to up to 8 nested threads
 
-	while(depth<8 && next_lock->holder->priority<cur_thread->priority &&
+	while(depth<8 &&
 		next_lock->holder != cur_thread)
 	{	
 	
-	  next_lock->priority = cur_thread->priority;
-	  //memorize the priority in the lock
-	  //(can be changed at a later time by 
-	  //another donation)
-	  
-	  //if the list is empty then no donation has taken place before
-	  //for the thread that holds the lock. Thus set the init_priority
-	  //of the thread that has the lock to its current priority	
-	  if(list_empty(&next_lock->holder->lock_list))
-	    next_lock->holder->init_priority = next_lock->holder->priority;
-	  //if the next_lock is not in the list of locked list then add it
-	  if(!is_in_list(&next_lock->elem))
-	    list_push_front(&next_lock->holder->lock_list,&next_lock->elem);
-	  //it the thread that has the lock is not blocked then move it from
-	  //its current priority list to the priority list corresponding to the
-	  //priority of the currently running thread
-	  if(next_lock->holder->status != THREAD_BLOCKED)
-		  thread_swap(next_lock->holder);	
-	  else
-		  //otherwise just change it's priority as it must be in
-		  // a waiting list
-		  next_lock->holder->priority = cur_thread->priority;
+	  if(next_lock->holder->priority<cur_thread->priority){
+		  //memorize the priority in the lock
+		  //(can be changed at a later time by 
+		  //another donation)
 		  
-	  depth++;
-	  //check if nested donation can take place
-	  if(next_lock->holder->try_lock!=NULL)
-		  next_lock = next_lock->holder->try_lock;
-	  else
-		  break;
+		  //if the list is empty then no donation has taken place before
+		  //for the thread that holds the lock. Thus set the init_priority
+		  //of the thread that has the lock to its current priority	
+		  if(list_empty(&next_lock->holder->lock_list))
+			next_lock->holder->init_priority = next_lock->holder->priority;
+		  //if the next_lock is not in the list of locked list then add it
+		  if(!is_in_list(&next_lock->elem))
+			list_push_front(&next_lock->holder->lock_list,&next_lock->elem);
+		  //it the thread that has the lock is not blocked then move it from
+		  //its current priority list to the priority list corresponding to the
+		  //priority of the currently running thread
+		  if(next_lock->holder->status != THREAD_BLOCKED)
+			  thread_swap(next_lock->holder);	
+		  else
+			  //otherwise just change it's priority as it must be in
+			  // a waiting list
+			  next_lock->holder->priority = cur_thread->priority;
+			  
+		
+		}
+		if(next_lock->priority < cur_thread->priority){
+			 next_lock->priority = cur_thread->priority;
+		}
+		  depth++;
+		  //check if nested donation can take place
+		  if(next_lock->holder->try_lock!=NULL)
+			  next_lock = next_lock->holder->try_lock;
+		  else
+			  break;
 	}
 
 	
@@ -358,6 +364,7 @@ int lock_donate_restore(struct lock *cur_lock)
 	  //to NULL so that is_in_list function will work properly
 	  //on the next call on the same element (i.e. see list.c/list.h)
 	  (&cur_lock->elem)->prev = (&cur_lock->elem)->next = NULL;
+	  cur_lock->priority = PRI_MIN;
 
 	}
 	

@@ -394,7 +394,6 @@ inline void thread_wake(int64_t timer_ticks)
 {
   //search through the waiting list
   //and pick the elements that are to be woken up
- 
   if(!list_empty(&waiting_list)) {
     struct list_elem *e;
     struct sleeper *tmp_sleeper;
@@ -665,15 +664,7 @@ thread_set_priority_ps (int new_priority)
   {
     cur_thread->priority = new_priority;
     struct list *curlist;
-    int i;
-    for(i = PRI_MAX; i>cur_thread->priority; i--)
-    {
-      curlist = &(priority_list[i]);
-      if(!list_empty(curlist))
-      {
-	break;
-      }
-    }
+    
   }
   intr_set_level(old_level);
   thread_yield();
