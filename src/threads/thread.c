@@ -155,7 +155,6 @@ thread_init (void)
     la_cur_weight = FP_DIVI(FP_FROMINT(1),60);
     fp_pri_max = FP_FROMINT(PRI_MAX);
     load_avg = FP_FROMINT(0);
-    ready_threads = 0;
     
     printf("Past: %d Cur: %d\n",la_past_weight, la_cur_weight);
     
@@ -164,7 +163,7 @@ thread_init (void)
     thread_tick = &thread_tick_ps;
     thread_set_priority = &thread_set_priority_ps;
   }
-  
+  ready_threads = 0;
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
@@ -406,7 +405,7 @@ inline void thread_wake(int64_t timer_ticks)
       if (tmp_sleeper->sleep_time > timer_ticks) {
 	break;
       } else {
-	sema_up(&tmp_sleeper->waiting_semaphore); 			
+    		sema_up(&tmp_sleeper->waiting_semaphore); 			
       }
     }
   }
