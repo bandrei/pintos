@@ -9,41 +9,59 @@
 >> Fill in the names and email addresses of your group members.
 
 Rory Allford <rda10@imperial.ac.uk>
-Alina Boghiu <ab3110@imperial.ac.uk>
 Andrei Bara <ab6610@imperial.ac.uk>
+Alina Boghiu <ab3110@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
+>> Note that when calculating the maximum or minimum
+>> from a list we have not used the already existing
+>> function (i.e. list_get_max and functions for defining
+>> the order of elements) as we considered it to be more 
+>> resource efficient although the amount of code is increased
+>> (function calls and the structures created within each function
+>> call could be quite high) the point was for most of the code
+>> to execute as fast as possible wher interrupts are disabled
+>> (so is the case when waking threads contained in
+>> semaphores, cond vars and the waiting_list).
 
->> If you have any preliminary comments on your submission, notes for the
->> TAs, or extra credit, please give them here.
-
->> Please cite any offline or online sources you consulted while
->> preparing your submission, other than the Pintos documentation, course
->> text, lecture notes, and course staff.
 
                  ALARM CLOCK
                  ===========
 
 ---- DATA STRUCTURES ----
 
->> A1: Copy here the declaration of each new or changed `struct' or
->> `struct' member, global or static variable, `typedef', or
->> enumeration.  Identify the purpose of each in 25 words or less.
+~~~~~~~~~~~~thread.c~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-static struct list waiting_list;
-    // replaces ready_list which is now absolete
+*******static struct list waiting_list;*********
+PURPOSE:
+>> This struct will hold a list of sleeper elements
+>> used to store information about the threads that
+>> are put to sleep. 
 
-static struct lock waiting_lock;
+*******static struct lock waiting_lock;*********
+PURPOSE:
+>> Create a lock to be used to avoid race conditions
+>> when trying to insert a new element into the waiting_list
+>> (It can't be used in an interrupt handler as it is a lock)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-New struct in synch.h:
 
+~~~~~~~~~~~~~~~~~~synch.h~~~~~~~~~~~~~~~~~~~~~~
 struct sleeper
   {
   int64_t sleep_time;
   struct semaphore waiting_semaphore;
   struct list_elem elem;
   }; 
-    // Keeps track of all the sleeping threads.
+
+PURPOSE:
+>> Will store information about the threads that are being put asleep.
+>> It will contain information about the sleeping time (which is actually
+>> the time when a thread should be woken up) and a semaphore that will be
+>> downed by the sleeping thread.
+>> To be used in conjuction with "waiting_list".
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ---- ALGORITHMS ----
 
