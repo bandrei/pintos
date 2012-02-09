@@ -49,7 +49,7 @@ PURPOSE:
 ~~~~~~~~~~~~~~~~~~synch.h~~~~~~~~~~~~~~~~~~~~~~
 struct sleeper
   {
-  int64_t sleep_time;
+  int64_t wake_time;
   struct semaphore waiting_semaphore;
   struct list_elem elem;
   }; 
@@ -69,26 +69,67 @@ PURPOSE:
 >> including the effects of the timer interrupt handler.
 
 The timer_sleep(int64_t ticks) method calls thread_sleep(int64_t ticks) which puts the
-current thread to sleep for 'ticks' number of timer ticks, adds it to the
-'sleepers' list and yields the CPU to the scheduler to pick a new thread to run.
+current thread to sleep for 'ticks' number of timer ticks. It then calls thread_sleep()
+with an argument representing the time when the thread is due to wake up. thread_sleep()
+will then add the current running thread to the waiting_list by creating a semaphore,
+adding it to the list and then downing it (i.e. the sleeper struct is used in order
+to accomplish this). The current thread is then blocked and schedule() will be called.
+
+Also the timer interrupt handler will be the one incrementing the number of system tick
+and the one that will call thread_tick() which in turn will call thread_wake(). At this
+point the list of "sleepers" will be traversed in ascending order and the appropriate threads
+woken up.
 
 
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
+In order to minimize the time spent waking the threads up the threads that
+have been put to sleep have been inserted in ascending order of their wake up time (stored
+as an absolute value from when the operating system has started, in the wake_time member).
+Thus, when waking up threads the list of sleepers will be popped untill all the threads
+with the same wake_time value have been woken up (and then break early as the list is ordered).
+
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+In order to avoid race condition when timer_sleep() is called and thus
+thread_sleep(), we have used locks and semaphores. When inserting a new
+sleeper struct in the waiting_list we acquire waiting_lock, perform the 
+insertion and then release the lock. After this point the thread is being put to sleep.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+First scenario would involve changing the state of the waiting_list inside the
+thread_sleep function by being interrupted while inserting a sleeper element in the list.
+No special measures are needed to avoid this scenario as the current definition of list_insert
+would not leave the waiting_list in an inconsistent state at any time (this is due to the fact
+that the operations when the pointers themselves are changed, are atomic; possibly a "mov" instruc-
+tion).
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We have chosen this design as this seemed one of the best ways to do it:
+1. We are using synchronization mechanism already implemented in PintOS (like locks
+and semaphores) as opposed to using thread_block() and thread_unblock() to emulate
+the behaviour of the already existing structures. Also as time is not an issue when
+calling thread_sleep() there is no immediate requirement for code optimizations.
+2. We are avoiding any possible race conditions by using synchronization
+3. The code is easier to understand by using locks and semaphores
+4. Keeping absolute values of sleeping times reduces computational costs and also
+simplifies the algorithms as opposed to relative sleeping times which would allow the user
+to set a longer sleeping time but would slow down the operating system (as the computations
+for deciding which thread to be woken up is done during an interrupt).
+5. Using for loops inside thread_wake instead of making use of list_max or list_min
+will optimize performance as this function is being called every tick and thus reducing
+the complexity of function calls and reducing the stack usage is required.
 
              PRIORITY SCHEDULING
              ===================
@@ -99,6 +140,7 @@ current thread to sleep for 'ticks' number of timer ticks, adds it to the
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct thread
   {
     /* Owned by thread.c. */
@@ -132,26 +174,86 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
+----------------------------------------------------------------------------
 New memebers in struct threads:
-
+----------------------------------------------------------------------------
 int init_priority;
-    // Holds the initial priority to which the thread reverts to after donation.
+    - Holds the initial priority to which the thread reverts to after donation.
 
 struct lock *try_lock;
-    // Points to the lock the current thread is trying to lock on.
+    - Points to the lock the current thread is trying to lock on.
 
 struct list lock_list;
-    // Holds a list of locks that other threads are trying to acquires from the
+    - Holds a list of locks that other threads are trying to acquires from the
        current thread.
 
-fixed recent_cpu;
+fixed recent_cpu; --for later use in the BSD
+int nice;		  --for later use in the BSD
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct lock 
+  {
+    struct thread *holder;      /* Thread holding lock (for debugging). */
+    struct semaphore semaphore; /* Binary semaphore controlling access. */
+	int priority;
+	struct list_elem elem;		/* will e */
+  };
 
-int nice;
+-----------------------------------------------------------------------------
+New memebers:
+-----------------------------------------------------------------------------
+int priority 
+	- will store the priority of the thread that it is trying to acquire 
+	that lock if its priority is higher than the already existing priority
+	of the lock
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
+
+The "data structure" used to track priority donation is formed of 2 components:
+1. lock_list - as explained above
+2. struct lock - by making use of the newly added priority field.
+
+
+
+------------------------------------------------------------|
+															|
+THREAD 1   													|
+trying LOCK A												|
+priority: 20;   											|
+------------------------------------------------------------|
+						|
+						|
+						|
+------------------------|-----------------------------------|
+					   \\/									|
+					-------------	-------------			|
+THREAD 1   			| 	LOCK	|   |	LOCK	|			|
+trying LOCK B		|	  A 	|	|	  C     |			|
+					|new pri: 20|	|new pri:0;	|			|
+priority:17;		-------------	-------------			|
+new priority: 20;		locks held by the current thread	|
+					that another thread is trying to acquire|
+						(locks stored in lock_list)         |
+------------------------------------------------------------|
+						|
+						|
+						|
+------------------------|-----------------------------------|
+					   \\/									|
+					-------------	-------------			|
+THREAD 2   			| 	LOCK	|   |	LOCK	|			|
+priority: 16;		|	  B		|	|	  D		|			|
+new priority: 20;	|new pri: 20|	|new pri: 0 |			|
+					-------------	-------------			|
+						locks held by the current thread	|
+					that another thread is trying to acquire|
+						(locks stored in lock_list)         |
+------------------------------------------------------------|
 
 ---- ALGORITHMS ----
 

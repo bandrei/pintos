@@ -362,7 +362,7 @@ void thread_sleep(int64_t ticks)
       }
     
   } else {
-    sleeper->sleep_time = ticks;
+    sleeper->wake_time = ticks;
     sema_init(&sleeper->waiting_semaphore,0);
     
     
@@ -385,8 +385,8 @@ bool
 sleep_less(const struct list_elem *a, const struct list_elem *b,
 	   void *aux UNUSED)
 {
-  return list_entry(a,struct sleeper, elem)->sleep_time <  
-		list_entry(b,struct sleeper, elem) -> sleep_time;
+  return list_entry(a,struct sleeper, elem)->wake_time <  
+		list_entry(b,struct sleeper, elem) -> wake_time;
 }
 
 inline void thread_wake(int64_t timer_ticks)
@@ -402,7 +402,7 @@ inline void thread_wake(int64_t timer_ticks)
     for (e= list_begin (&waiting_list); e!= list_end (&waiting_list);
 	 e = list_next (e)) {	
       tmp_sleeper = list_entry (e, struct sleeper, elem);
-      if (tmp_sleeper->sleep_time > timer_ticks) {
+      if (tmp_sleeper->wake_time > timer_ticks) {
 	break;
       } else {
     		sema_up(&tmp_sleeper->waiting_semaphore); 			

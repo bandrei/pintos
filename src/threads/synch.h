@@ -15,7 +15,7 @@ struct semaphore
 that have been put asleep*/
 struct sleeper
 {
-  int64_t sleep_time;
+  int64_t wake_time;
   struct semaphore waiting_semaphore;
   struct list_elem elem;
 };
