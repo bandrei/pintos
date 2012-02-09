@@ -30,28 +30,31 @@ Andrei Bara <ab6610@imperial.ac.uk>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+static struct list waiting_list;
+    // replaces ready_list which is now absolete
+
+static struct lock waiting_lock;
+
 New struct in synch.h:
+
 struct sleeper
   {
   int64_t sleep_time;
   struct semaphore waiting_semaphore;
   struct list_elem elem;
-  };
-
-Keeps track of all the sleeping threads.
-
-
-Modified:
-We are using waiting_list instead of ready_list.
-
+  }; 
+    // Keeps track of all the sleeping threads.
 
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
-The timer_sleep() method calls thread_sleep() which puts the current thread to 
-sleep for 'ticks' number of timer ticks, adds the thread to the 'sleepers' list and 
+The timer_sleep(int64_t ticks) method calls thread_sleep(int64_t ticks) which puts the
+current thread to sleep for 'ticks' number of timer ticks, adds it to the
+'sleepers' list and yields the CPU to the scheduler to pick a new thread to run.
+
+
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
@@ -78,14 +81,55 @@ sleep for 'ticks' number of timer ticks, adds the thread to the 'sleepers' list 
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    int init_priority;			/* Initial priority when donation starts
+					   (i.e. priority to revert to when all
+					   of the donations have been removed */
+    struct lock *try_lock;		/* Hold the lock the current thread is
+					   trying to lock on */
+    struct list lock_list;		/* Hold a list of locks that another
+					   thread is trying to acquire from the
+					   current thread */
+    struct list_elem allelem;		/* List element for all threads list. */
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+        
+    /* BSD */
+    fixed recent_cpu;
+    int nice;
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
 New memebers in struct threads:
 
-  int init_priority: 		Holds the initial priority to which the thread 
-				  reverts to after donation.
-  struct lock *try_lock:	Points to the lock the current thread is trying
-				  to lock on.
-  struct list lock_list:	Holds a list of locks that other threads are
-				  trying to acquires from the current thread.
+int init_priority;
+    // Holds the initial priority to which the thread reverts to after donation.
+
+struct lock *try_lock;
+    // Points to the lock the current thread is trying to lock on.
+
+struct list lock_list;
+    // Holds a list of locks that other threads are trying to acquires from the
+       current thread.
+
+fixed recent_cpu;
+
+int nice;
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
