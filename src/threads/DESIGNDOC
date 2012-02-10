@@ -446,52 +446,46 @@ optimisation we might look at a new type of data structure that would allow bett
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-				IN THREAD.H
+				IN THREAD.C
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct thread
   {
-    /* Owned by thread.c. */
-    tid_t tid;                          /* Thread identifier. */
-    enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
-    int init_priority;			/* Initial priority when donation starts
-					   (i.e. priority to revert to when all
-					   of the donations have been removed */
-    struct lock *try_lock;		/* Hold the lock the current thread is
-					   trying to lock on */
-    struct list lock_list;		/* Hold a list of locks that another
-					   thread is trying to acquire from the
-					   current thread */
-    struct list_elem allelem;		/* List element for all threads list. */
-
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
-        
-    /* BSD */
     fixed recent_cpu;
     int nice;
-
-#ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
-#endif
-
-    /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
   };
+
+#define NICE_MIN -20
+#define NICE_MAX 20
+
+static volatile fixed load_avg;
+static volatile fixed ready_threads;
+
+fixed la_past_weight;
+fixed la_cur_weight;
+fixed fp_pri_max;
+
+void thread_tick_mlfqs (int64_t ticks);
+void thread_set_priority_mlfqs (int new_priority);
 
 ----------------------------------------------------------------------
 New members:
 ----------------------------------------------------------------------
- fixed recent_cpu
-	- will hold the recent_cpu value computed by the BSD scheduler
- int nice
-	- will hold the nice value of a thread;
+ thread.recent_cpu
+	- fixed point recent_cpu per-thread statistic calculated as specified
+ thread.nice
+	- integer per-thread nice value
+	- Invariant: clamped between NICE_MIN and NICE_MAX
+ load_avg
+	- fixed point global load average statistic
+ ready_threads
+	- integer count of the number of threads with status READY or RUNNING
+	- Invariant: value is updated consistently with thread.priority
+	- READY_THREADS_CHECK can be set to assert this every tick
+ la_past_weight, la_cur_weight, fp_pri_max
+	- fixed point constants to optimise certain calculations every tick
+ thread_tick_mlfqs, thread_set_priority_mlfqs
+	- mlfqs entrypoints for these functions that are set on startup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
 
 							IN THREAD.H
 
@@ -503,33 +497,11 @@ typedef void fp_thread_set_priority (int new_priority);
 fp_thread_set_priority *thread_set_priority;
 
 ----------------------------------------------------------------------
-Function pointers used to make switching between functions
-easier and clearer in the code (i.e. when switching between normal
-threads and mlfqs threads, one can just calll thread_tick in timer
-interrupt without adding extra checks).
-
+Function pointers used to make switching entry points between the 
+mlfqs and normal kernel scheduling modes clearer and more efficient
+- we save an if(thread_mlfqs) statement every tick.
 ---------------------------------------------------------------------
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-							IN THREAD.C
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-fixed la_past_weight;
-fixed la_cur_weight;
-fixed fp_pri_max;
-
-/* BSD */
-static volatile fixed load_avg; //store the load average
-static volatile fixed ready_threads; //store the number or ready threads
-
-void thread_tick_mlfqs (int64_t ticks); //to be used by the function pointer 
-										//thread_tick
-void thread_set_priority_mlfqs (int new_priority); // to be used by the function
-										//pointer thread_tick
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
 
 ---- ALGORITHMS ----
 
@@ -549,35 +521,35 @@ ticks   A   B   C   A   B   C   to run
 20		12	8	0	60 	59 	59 	  A
 24		16	8 	0 	59	59 	59 	  C
 28		16	8	4	59	59	58	  B
-32		16	12	4	59	58  58 	  A
+32		16	12	4	59	58	58 	  A
 36		20	12	4	58	58	58 	  C
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
-One of the ambiguity from the specification is whether to increment the recent_cpu
-value before re-calculating the priorities or after calculating the priority. 
-In our implementation as reflected in the table we have decided to increment it
-before the re-calculations.
-
-Another ambiguity arises from rounding the values obtained after re-calculating priorities.
-We used the floor macro (FP_FLOOR) to round the values.
-
-Also there is another case which might occur: a priority goes below PRI_MIN
-in which case we used FP_CLAMPI to clamp the value  to PRI_MIN. 
+One ambiguity in the specification is whether to increment the recent_cpu
+value before re-calculating the priorities or after calculating the priority.
+In our implementation as reflected in the table we increment it before so that
+the value used in the other calculations is as accurate and recent as possible.
 
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
 
-In order to reduce the amount of operations inside the timer_interrupt
-we have decided to move part of the code outside of the interrupt (i.e.
-rather than counting the number of the ready threads in the interrupt
-we have a global variable which would store the current number of ready threads;
-this varible gets incremented and decremented accordingly). Athough theoretically
-this is not reflected in the algorithm complexity in practice this has
-proved to be a good improvement to operating system.
+At all stages we have attempted to minimize the number of operations inside the
+timer interrupt. For instance rather than re-counting ready_threads we maintain
+this as a global variable outside the interrupt context which also gives an
+expected amortised speedup. We have also used the function pointer entrypoints
+detailed above to avoid if(thread_mlfqs) checks.
 
+There is a negligable O(1) addition to the critical section in thread creation.
+
+Reducing the size of critical sections in particular the complexity of 
+thread_tick leads to an amortised speedup in the scheduling performance.
+
+Since Pintos is not a multiprocessing OS further changes that could increase
+performance such as pre-emptible scheduling code or a finer grained locking
+approach would not yield any improvement in this case.
 
 ---- RATIONALE ----
 
