@@ -267,7 +267,6 @@ inline void thread_calc_priority_mlfqs (struct thread *t, void *aux UNUSED) {
   if (t->status == THREAD_READY) {
     if (pnew != t->priority) {
       // PRE: t->elem is an element of priority_list[t->priority]
-      // TODO: Make this a debug assertion
       list_remove(&(t->elem));
       t->init_priority = t->priority = pnew;
       list_push_back(&(priority_list[pnew]), &(t->elem));
@@ -305,7 +304,9 @@ thread_tick_mlfqs (int64_t ticks)
     
     
     
-#ifdef READY_THREADS_CHECK    
+#ifdef READY_THREADS_CHECK   
+	//code used for debugging purposes
+	//enable it by defining READY_THREADS_CHECK 
     // Count number of ready threads
     int ready_threads_check = 0;
     THREAD_FOREACH(thread_count_ready,&ready_threads_check);

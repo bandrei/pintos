@@ -118,7 +118,7 @@ We have chosen this design as this seemed one of the best ways to do it:
 1. We are using synchronization mechanism already implemented in PintOS (like locks
 and semaphores) as opposed to using thread_block() and thread_unblock() to emulate
 the behaviour of the already existing structures. Also as time is not an issue when
-calling thread_sleep() there is no immediate requirement for code optimizations.
+calling thread_sleep() there is no immediate requirement for code optimisations.
 2. We are avoiding any possible race conditions by using synchronization
 3. The code is easier to understand by using locks and semaphores
 4. Keeping absolute values of sleeping times reduces computational costs and also
@@ -184,6 +184,11 @@ struct list lock_list;
 fixed recent_cpu; --for later use in the BSD
 int nice;		  --for later use in the BSD
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct lock 
   {
@@ -206,6 +211,13 @@ struct list_elem elem
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
+
+
+
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static struct list priority_list [PRI_MAX+1];  
 
@@ -214,6 +226,26 @@ scheduling and the rest of the operating system. All of the THREAD_READY
 threads should be in one of these lists
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct semaphore 
+  {
+    volatile unsigned value;             /* Current value. */
+    struct list waiters;        /* List of waiting threads. */
+  };
+  
+  value has been declared as volatile in order to avoid any problems that 
+  might occur due to context switches and compiler optimisations (this
+  was not a necessary change, but it better to avoid possible error that
+  might occur; the optimisation barrier should reduce the proabability of such
+  an error occuring). 
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 
 >> B2: Explain the data structure used to track priority donation.
@@ -390,6 +422,9 @@ operating on this array and on the lists (i.e. for instance when next_thread_to_
 iterates through the array to find the next non-empty list of threads). Also the lists provide
 functionalities for adding at the front or back at the list in constant time; same happens
 when popping the list. Thus the complexity of moving a thread in the ready lists is constant.
+Although keeping an array of 64 lists in memory takes 1KB of space, this is still a vital
+part of the operating system which should allow very fast access to its elements. For future
+optimisation we might look at a new type of data structure that would allow better performace.
 
 
               ADVANCED SCHEDULER
@@ -446,6 +481,8 @@ New members:
 	- will hold the nice value of a thread;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 							IN THREAD.H
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -473,8 +510,13 @@ fixed la_cur_weight;
 fixed fp_pri_max;
 
 /* BSD */
-static volatile fixed load_avg;
-static volatile fixed ready_threads;
+static volatile fixed load_avg; //store the load average
+static volatile fixed ready_threads; //store the number or ready threads
+
+void thread_tick_mlfqs (int64_t ticks); //to be used by the function pointer 
+										//thread_tick
+void thread_set_priority_mlfqs (int new_priority); // to be used by the function
+										//pointer thread_tick
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -489,23 +531,43 @@ static volatile fixed ready_threads;
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
+ 0		0	0	0	63	61	59	  A
+ 4		4 	0	0	62	61	59	  A
+ 8		8	0	0	61	61	59	  B
+12		8	4	0	61	60	59	  A
+16		12 	4	0	60 	60 	59	  B
+20		12	8	0	60 	59 	59 	  A
+24		16	8 	0 	59	59 	59 	  C
+28		16	8	4	59	59	58	  B
+32		16	12	4	59	58  58 	  A
+36		20	12	4	58	58	58 	  C
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
+One of the ambiguity from the specification is whether to increment the recent_cpu
+value before re-calculating the priorities or after calculating the priority. 
+In our implementation as reflected in the table we have decided to increment it
+before the re-calculations.
+
+Another ambiguity arises from rounding the values obtained after re-calculating priorities.
+We used the floor macro (FP_FLOOR) to round the values.
+
+Also there is another case which might occur: a priority goes below PRI_MIN
+in which case we used FP_CLAMPI to clamp the value  to PRI_MIN. 
+
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+
+In order to reduce the amount of operations inside the timer_interrupt
+we have decided to move part of the code outside of the interrupt (i.e.
+rather than counting the number of the ready threads in the interrupt
+we have a global variable which would store the current number of ready threads;
+this varible gets incremented and decremented accordingly). Athough theoretically
+this is not reflected in the algorithm complexity in practice this has
+proved to be a good improvement to operating system.
+
 
 ---- RATIONALE ----
 
@@ -514,12 +576,42 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
 
+In many of the situations we have decided to implement macros rather
+than functions. Although this is not usually good practice this would
+reduce the overhead caused by function calls.
+
+Also in order to speed up the calculation we have used bitwise arithmetic
+when multiplying or dividing by multiples of 2 (although in most of the cases 
+the compiler would optimise this, due to the optimisation barrier imposed
+on pintos this would probably not happen).
+ 
+It is important to note that some of the function have been declared as inline
+(like thread_calc_recent_cpu or thread_calc_priority_mlfqs). This has been
+done to speed up the calculations processes in interrupt by avoiding function
+calls in loop and rather inserting the code of the function inisde the loop.
+
+Some of the the variables like ready_threads have been declared as volatile
+in order to avoid any possible conflicts that might occur when the compiler
+tries to optimize the code and does register allocation (although during testing
+we have not encountered a scenario in which this might occur this is still
+a good thing to do).
+
+For future optimisation we might have to look at ways of computing the values
+in as few steps as possible and also see if some more of the computations can
+be moved out of the interrupt. Also we might research a new type of storing
+the ready threads which would allow faster traversals and searches.
+
 >> C6: The assignment explains arithmetic for fixed-point mathematics in
 >> detail, but it leaves it open to you to implement it.  Why did you
 >> decide to implement it the way you did?  If you created an
 >> abstraction layer for fixed-point mathematics, that is, an abstract
 >> data type and/or a set of functions or macros to manipulate
 >> fixed-point numbers, why did you do so?  If not, why not?
+
+For the implementation of fixed-point arithmetic we have decided
+to use macros in order to compute the values required. As most of the
+fixed-point arithmetic is done inside the timer-interrupt speed is an
+issue and reducing the overhead of function calls is important.
 
                SURVEY QUESTIONS
                ================
