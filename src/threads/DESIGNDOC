@@ -82,18 +82,21 @@ with an argument representing the time when the thread is due to wake up.
 thread_sleep() will then add the current running thread to the waiting_list by
 creating a semaphore, adding it to the list and then downing it (i.e. the
 sleeper struct is used in order to accomplish this). The current thread is then
-blocked and schedule() will be called.
+blocked.
 
-Also the timer interrupt handler will be the one incrementing the number of
-system tick and the one that will call thread_tick() which in turn will call
+The timer interrupt handler will be the one incrementing the number of
+system ticks and the one that will call thread_tick() which in turn will call
 thread_wake(). At this point the list of "sleepers" will be traversed in
-ascending order and the appropriate threads woken up.
+ascending order and the appropriate threads woken up (note that due to the
+implementation of sema_up the current thread would yield only when exiting
+the interrupt handler and by that time all the threads that need waking
+should be in the ready lists).
 
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
-In order to minimize the time spent waking the threads up the threads that
+In order to minimize the time spent waking the threads up, the threads that
 have been put to sleep have been inserted in ascending order of their wake up
 time (stored as an absolute value from when the operating system has started,
 in the wake_time member). Thus, when waking up threads the list of sleepers
@@ -110,7 +113,7 @@ thread_sleep(), we have used locks and semaphores. When inserting a new
 sleeper struct in the waiting_list we acquire waiting_lock, perform the 
 insertion and then release the lock. After this point the thread is being put
 to sleep. (Note: when the thread is woken up it will continue running from
-where it was stopped in thread_sleep(); it will remove itself from the list of
+where it was stopped in thread_sleep(); it will then remove itself from the list of
 waiters).
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
@@ -121,11 +124,11 @@ thread_sleep function by being interrupted while inserting a sleeper element in
 the list. No special measures are needed to avoid this scenario as the current
 definition of list_insert would not leave the waiting_list in an inconsistent
 state at any time (this is due to the fact that the operations when the
-pointers themselves are changed, are atomic; possibly a "mov" instruction, and
+pointers themselves are changed, are atomic - possibly a "mov" instruction -, and
 thus in a worst case scenario when the list is traversed during insertion, it
 might skip the element that is to be inserted, but this is not a problem when
 waking up the threads as even if the thread is not inserted fast enough it will
-be woken up at the the next tick; if (tmp_sleeper->wake_time > timer_ticks)
+be woken up at the the next tick; "if (tmp_sleeper->wake_time > timer_ticks)"
 will ensure that no threads forget to wake up).
 
 ---- RATIONALE ----
@@ -318,7 +321,7 @@ semaphore as extreme time efficiency is not required here).
 
 
 In all of the cases sema_up will call thread_yield() as soon as possible
-if nod inside an interrupt (if in an external interrupt handler then 
+if not inside an interrupt (if in an external interrupt handler then 
 intr_yield_on_return() is called so that the thread yields when it returns from
 the interrupt handler) or if the interrupts are not disabled. This will allow
 the thread with the highest priority to be scheduled immediately if possible.
@@ -342,14 +345,15 @@ donating thread and gets added to the lock_list of its holding thread. Then, if
 the holding thread is THREAD_READY then thread_swap() is called and this
 function will move the holding thread in the lists of ready threads otherwise
 its priroity gets changed, but the thread is not moved to a new list/location.
+
 If the holding thread is also trying to acquire another lock (by checking
-try_lock) the process continues up to 8 times, otherwise the nested donation
+try_lock) the process continues, otherwise the nested donation
 stops.
 
 It is important to note that if it is the case that the lock_list is empty then
 the init_priority field in the holding thread (i.e. the one that will receive
 the donation) will be set to its priority prior to donation (this step is
-required when releasing the donations and there is nothing more to cascade
+required when releasing the donations as there is nothing more to cascade
 through). Also a lock is only added once to the list, and if already in the
 list then its priority gets updated.
 
@@ -429,10 +433,12 @@ allow nested donation and it is an easy way to record which lock a thread is
 trying to acquire and since threads are visible within the scope of the locks
 (i.e. by using lock.holder). init_priority records the priority of a thread
 before receiving its first donation. By adding these 2 fields a lot of
-complexity has been avoided by not creating separate data structures that
-would just store this information.
+complexity has been avoided and also more memory space has been saved by 
+not creating some alternative data structures to store the information.
 
-4. We have used an array of size 64 to store 64 priority lists. This is due to
+4. sema_up() function has been modified so that the thread would yield as soon as possible.
+
+5. We have used an array of size 64 to store 64 priority lists. This is due to
 the fact that this provides 64 adjacent memory location, that are usually
 faster to access when operating on this array and on the lists (i.e. for
 instance when next_thread_to_run() iterates through the array to find the next
