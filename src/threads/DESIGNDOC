@@ -6,8 +6,6 @@
                    
 ---- GROUP ----
 
->> Fill in the names and email addresses of your group members.
-
 Rory Allford <rda10@imperial.ac.uk>
 Andrei Bara <ab6610@imperial.ac.uk>
 Alina Boghiu <ab3110@imperial.ac.uk>
@@ -402,6 +400,84 @@ when popping the list. Thus the complexity of moving a thread in the ready lists
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+				IN THREAD.H
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    int init_priority;			/* Initial priority when donation starts
+					   (i.e. priority to revert to when all
+					   of the donations have been removed */
+    struct lock *try_lock;		/* Hold the lock the current thread is
+					   trying to lock on */
+    struct list lock_list;		/* Hold a list of locks that another
+					   thread is trying to acquire from the
+					   current thread */
+    struct list_elem allelem;		/* List element for all threads list. */
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+        
+    /* BSD */
+    fixed recent_cpu;
+    int nice;
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+----------------------------------------------------------------------
+New members:
+----------------------------------------------------------------------
+ fixed recent_cpu
+	- will hold the recent_cpu value computed by the BSD scheduler
+ int nice
+	- will hold the nice value of a thread;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+							IN THREAD.H
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+typedef void fp_thread_tick (int64_t ticks);
+fp_thread_tick *thread_tick;
+
+typedef void fp_thread_set_priority (int new_priority);
+fp_thread_set_priority *thread_set_priority;
+
+----------------------------------------------------------------------
+Function pointers used to make switching between functions
+easier and clearer in the code (i.e. when switching between normal
+threads and mlfqs threads, one can just calll thread_tick in timer
+interrupt without adding extra checks).
+
+---------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+							IN THREAD.C
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fixed la_past_weight;
+fixed la_cur_weight;
+fixed fp_pri_max;
+
+/* BSD */
+static volatile fixed load_avg;
+static volatile fixed ready_threads;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 ---- ALGORITHMS ----
 
