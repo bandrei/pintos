@@ -34,7 +34,7 @@ Alina Boghiu <ab3110@imperial.ac.uk>
 PURPOSE:
 >> This struct will hold a list of sleeper elements
 >> used to store information about the threads that
->> are put to sleep. 
+>> are put to sleep in ascending order of wake_time
 
 *******static struct lock waiting_lock;*********
 PURPOSE:
@@ -75,29 +75,30 @@ PURPOSE:
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
-The timer_sleep(int64_t ticks) method calls thread_sleep(int64_t ticks) which puts the
-current thread to sleep untill (start+ticks) number of timer ticks, where start represents
-the number of ticks so far. It then calls thread_sleep() with an argument representing 
-the time when the thread is due to wake up. thread_sleep() will then add the current 
-running thread to the waiting_list by creating a semaphore, adding it to the list and then 
-downing it (i.e. the sleeper struct is used in order to accomplish this). 
-The current thread is then blocked and schedule() will be called.
+The timer_sleep(int64_t ticks) method calls thread_sleep(int64_t ticks) which
+puts the current thread to sleep untill (start+ticks) number of timer ticks,
+where start represents the number of ticks so far. It then calls thread_sleep()
+with an argument representing the time when the thread is due to wake up.
+thread_sleep() will then add the current running thread to the waiting_list by
+creating a semaphore, adding it to the list and then downing it (i.e. the
+sleeper struct is used in order to accomplish this). The current thread is then
+blocked and schedule() will be called.
 
-Also the timer interrupt handler will be the one incrementing the number of system tick
-and the one that will call thread_tick() which in turn will call thread_wake(). At this
-point the list of "sleepers" will be traversed in ascending order and the appropriate threads
-woken up.
-
+Also the timer interrupt handler will be the one incrementing the number of
+system tick and the one that will call thread_tick() which in turn will call
+thread_wake(). At this point the list of "sleepers" will be traversed in
+ascending order and the appropriate threads woken up.
 
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
 In order to minimize the time spent waking the threads up the threads that
-have been put to sleep have been inserted in ascending order of their wake up time (stored
-as an absolute value from when the operating system has started, in the wake_time member).
-Thus, when waking up threads the list of sleepers will be popped untill all the threads
-with the same wake_time value have been woken up (and then break early as the list is ordered).
+have been put to sleep have been inserted in ascending order of their wake up
+time (stored as an absolute value from when the operating system has started,
+in the wake_time member). Thus, when waking up threads the list of sleepers
+will be popped untill all the threads with the same wake_time value have been
+woken up (and then break early as the list is ordered).
 
 ---- SYNCHRONIZATION ----
 
@@ -107,19 +108,20 @@ with the same wake_time value have been woken up (and then break early as the li
 In order to avoid race condition when timer_sleep() is called and thus
 thread_sleep(), we have used locks and semaphores. When inserting a new
 sleeper struct in the waiting_list we acquire waiting_lock, perform the 
-insertion and then release the lock. After this point the thread is being put to sleep.
-(Note: when the thread is woken up it will continue running from where it was stopped
-in thread_sleep(); it will remove itself from the list of waiters).
+insertion and then release the lock. After this point the thread is being put
+to sleep. (Note: when the thread is woken up it will continue running from
+where it was stopped in thread_sleep(); it will remove itself from the list of
+waiters).
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
 
 First scenario would involve changing the state of the waiting_list inside the
-thread_sleep function by being interrupted while inserting a sleeper element in the list.
-No special measures are needed to avoid this scenario as the current definition of list_insert
-would not leave the waiting_list in an inconsistent state at any time (this is due to the fact
-that the operations when the pointers themselves are changed, are atomic; possibly a "mov" instruc-
-tion).
+thread_sleep function by being interrupted while inserting a sleeper element in
+the list. No special measures are needed to avoid this scenario as the current
+definition of list_insert would not leave the waiting_list in an inconsistent
+state at any time (this is due to the fact that the operations when the
+pointers themselves are changed, are atomic; possibly a "mov" instruction).
 
 ---- RATIONALE ----
 
@@ -127,19 +129,19 @@ tion).
 >> another design you considered?
 
 We have chosen this design as this seemed one of the best ways to do it:
-1. We are using synchronization mechanism already implemented in PintOS (like locks
-and semaphores) as opposed to using thread_block() and thread_unblock() to emulate
-the behaviour of the already existing structures. Also as time is not an issue when
-calling thread_sleep() there is no immediate requirement for code optimisations.
-2. We are avoiding any possible race conditions by using synchronization
-3. The code is easier to understand by using locks and semaphores
-4. Keeping absolute values of sleeping times reduces computational costs and also
-simplifies the algorithms as opposed to relative sleeping times which would allow the user
-to set a longer sleeping time but would slow down the operating system (as the computations
-for deciding which thread to be woken up is done during an interrupt).
-5. Using for loops inside thread_wake instead of making use of list_max or list_min
-will optimize performance as this function is being called every tick and thus reducing
-the complexity of function calls and reducing the stack usage is required.
+1. We are using synchronization mechanism already implemented in PintOS
+(like locks and semaphores) as opposed to using thread_block() and
+thread_unblock() to emulate the behaviour of the already existing structures.
+Hence we are not adding many new critical sections.
+2. We are avoiding any possible race conditions by using synchronization.
+3. Use of locks and semaphores leads to a more intuitive algorithm and clearer
+code.
+4. Keeping absolute values of sleeping times reduces computational costs and
+also simplifies the algorithms as opposed to relative sleeping times which would
+require repeated recalculations in an interrupt context.
+5. Using a sorted list implementation and a break-early for loop over repeated
+calls to list_min provides both an expected amortised algorithmic speedup and
+reduces function calls in the interrupt context.
 
              PRIORITY SCHEDULING
              ===================
@@ -167,10 +169,6 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-        
-    /* BSD */
-    fixed recent_cpu;
-    int nice;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -192,9 +190,6 @@ struct lock *try_lock;
 struct list lock_list;
     - Holds a list of locks that other threads are trying to acquires from the
        current thread.
-
-fixed recent_cpu; --for later use in the BSD
-int nice;		  --for later use in the BSD
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -276,12 +271,12 @@ priority: 20;                                               |
                         |
 ------------------------|---------------------------------------|
                        \\/                                      |
-                    -------------	-------------               |
-THREAD 1            |  LOCK     |   |   LOCK     |              |
-trying LOCK B       |   A       |	|     C      |              |
-                    |pri: 20    |	|            |              |
-priority:17;        -------------	--------------              |
-new priority: 20;	locks held by the current thread            |
+                    -------------       -------------           |
+THREAD 1            |  LOCK     |       |   LOCK     |          |
+trying LOCK B       |   A       |       |     C      |          |
+                    |pri: 20    |       |            |          |
+priority:17;        -------------       --------------          |
+new priority: 20;	locks held by the current thread        |
                     that another thread is trying to acquire    |
                     (locks stored in lock_list)                 |
 ----------------------------------------------------------------|
@@ -328,28 +323,30 @@ the thread with the highest priority to be scheduled immediately if possible.
 
 Firstly, lock_acquire will disble interrupt prior to the start of the donation
 process and then check if the lock that the current thread is trying
-to acquire is indeed held by another thread. If such is the case then the current thread's
-try_lock member will point to this lock and the donation process is initiated by calling
-lock_donate.
+to acquire is indeed held by another thread. If such is the case then the
+current thread's try_lock member will point to this lock and the donation
+process is initiated by calling lock_donate.
 
 Lock donate will handle nested donation up to 8 nested threads as long as
 the thread that is being donated to is different from the current thread 
 (both conditions will prevent and will speed up the donation process ). 
 Also the priority donation process only takes place if the thread that is 
 donating has higher pirority than the thread it's donating to.
-Then the lock that is trying to be acquired records the priority of the donating thread
-and gets added to the lock_list of its holding thread. Then, if the holding thread is 
-THREAD_READY then thread_swap() is called and this function will move the holding thread 
-in the lists of ready threads otherwise its priroity gets changed but the thread is not moved
-to a new list/location.  If the holding thread is also trying to acquire another lock 
-(by checking try_lock) the process continues up to 8 times, otherwise
-the nested donation stops.
+Then the lock that is trying to be acquired records the priority of the
+donating thread and gets added to the lock_list of its holding thread. Then, if
+the holding thread is THREAD_READY then thread_swap() is called and this
+function will move the holding thread in the lists of ready threads otherwise
+its priroity gets changed but the thread is not moved to a new list/location.
+If the holding thread is also trying to acquire another lock (by checking
+try_lock) the process continues up to 8 times, otherwise the nested donation
+stops.
 
 It is important to note that if it is the case that the lock_list is empty then
-the init_priority field in the holding thread (i.e. the one that will receive the donation) 
-will be set to its priority prior to donation (this step is required when releasing the donations
-and there is nothing more to cascade through). Also a lock is only added once to the list,
-and if already in the list then its priority gets updated.
+the init_priority field in the holding thread (i.e. the one that will receive
+the donation) will be set to its priority prior to donation (this step is
+required when releasing the donations and there is nothing more to cascade
+through). Also a lock is only added once to the list, and if already in the
+list then its priority gets updated.
 
 Interrupts are renabled after the donation has completed.
 
@@ -359,13 +356,14 @@ Interrupts are renabled after the donation has completed.
 
 
 When a lock is released it is removed from the lock_list of the holding thread.
-If the list is empty then lock_donate_restore will return the initial priority of
-the thread. Otherwise it will return the maximum priority recorded by the locks
-in lock_list (see the donation process above).
-Then the priority of the current thread is set to the new priority before calling sema_up.
+If the list is empty then lock_donate_restore will return the initial priority
+of the thread. Otherwise it will return the maximum priority recorded by the
+locks in lock_list (see the donation process above).
+Then the priority of the current thread is set to the new priority before
+calling sema_up.
 
-Like in the donation process the donation restoration process will disable and then re-enable
-interrupts.
+Like in the donation process the donation restoration process will disable and
+then re-enable interrupts.
 
 ---- SYNCHRONIZATION ----
 
@@ -373,20 +371,22 @@ interrupts.
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
-A potential race condition in thread_set_priority might arrise when a donation process
-is taking place. Although only the current thread can make use of thread_set_priority()
-during a donation the thread's priority could be changed and thus leaving the priority
-switching operations in a incosistent state and leading to undefined behaviour). 
+A potential race condition in thread_set_priority might arrise when a donation
+process is taking place. Although only the current thread can make use of
+ thread_set_priority() during a donation the thread's priority could be changed
+and thus leaving the priority switching operations in a incosistent state and
+leading to undefined behaviour). 
 
-Therefore in order to avoid this and any other potential race conditions we have decided
-to disable interrupt for a very short period of time while manipulating the priority of
-the thread.
+Therefore in order to avoid this and any other potential race conditions we
+have decided to disable interrupt for a very short period of time while
+manipulating the priority of the thread.
 
-Using a lock at this point might be inappropriate as for instance the thread could yield
-after acquiring the lock, but then another thread might at some point want to donate to
-this thread and since this thread has already acquired a lock to prevent priority change
-the donation process as the priority of the thread can no longer be modified thus leading
-to a potential deadlock situation.
+Using a lock at this point might be inappropriate as for instance the thread
+could yield after acquiring the lock, but then another thread might at some
+point want to donate to this thread and since this thread has already acquired
+a lock to prevent priority change the donation process as the priority of the
+thread can no longer be modified thus leading to a potential deadlock
+situation.
 
 
 ---- RATIONALE ----
@@ -398,41 +398,44 @@ We have chosen this design due to the constraits of efficiency and also
 for reasons of simplicity as explained below:
 
 1. In the case of semaphores we have avoided using ordered insertion and
-other already existing list function. Due to priority donation and the priorities
-changing at any time keeping the waiters list of a semaphore ordered would require
-a lot of computational resources and thus slow the program significantly and even
-miss on some interrupts. Also calls like list_max are to avoided due to the fact
-that each function call adds to the complexity and also the operating system
-would have to jump to different memory locations to execute that function call
-whereas with our current implementation the code is trully inline. 
-	For the case of conditional variables (and sleeping threads as above) such
-constraints are not required as the signaling and waiting call are or should
-be used in a non-interrupted context and thus the small improvement in efficiency
-can be traded-off for a more clear code.
+other already existing list function. Due to priority donation and the
+priorities changing at any time keeping the waiters list of a semaphore ordered
+would require a lot of computational resources and thus slow the program
+significantly and even miss on some interrupts. Also calls like list_max are to
+avoided due to the fact that each function call adds to the complexity and also
+the operating system would have to jump to different memory locations to
+execute that function call whereas with our current implementation the code is
+truly inline. 
+	For the case of conditional variables (and sleeping threads as above)
+such constraints are not required as the signaling and waiting call are or
+should be used in a non-interrupted context and thus the small improvement in
+efficiency can be traded-off for a more clear code.
 
-2. We have modified the struct of the lock to hold a priority field and an elem field.
-This is due to the fact that it is easier during the donation restoration process
-to remove the locks from the lock_list of the holder thread and also dinamically change
-their recorded priority. This small trick saves a lot of both memory space and algorithm
-complexity.
+2. We have modified the struct of the lock to hold a priority field and an elem
+field. This is due to the fact that it is easier during the donation
+restoration process to remove the locks from the lock_list of the holder thread
+and also dynamically change their recorded priority. This small trick saves a
+lot of both memory space and algorithm complexity.
 
-3. In the thread structure we have added 2 new fields. try_lock is used to allow nested
-donation and it is an easy way to record which lock a thread is trying to acquire and since
-threads are visible within the scope of the locks (i.e. by using lock.holder). init_priority
-records the priority of a thread before receiving its first donation. By adding these 2 fields
-a lot of complexity has been avoided by not creating separate data structures that would just
-store this information.
+3. In the thread structure we have added 2 new fields. try_lock is used to
+allow nested donation and it is an easy way to record which lock a thread is
+trying to acquire and since threads are visible within the scope of the locks
+(i.e. by using lock.holder). init_priority records the priority of a thread
+before receiving its first donation. By adding these 2 fields a lot of
+complexity has been avoided by not creating separate data structures that
+would just store this information.
 
-4. We have used an array of size 64 to store 64 priority lists. This is due to the fact
-that this provides 64 adjacent memory location, that are usually faster to access when
-operating on this array and on the lists (i.e. for instance when next_thread_to_run() 
-iterates through the array to find the next non-empty list of threads). Also the lists provide
-functionalities for adding at the front or back at the list in constant time; same happens
-when popping the list. Thus the complexity of moving a thread in the ready lists is constant.
-Although keeping an array of 64 lists in memory takes 1KB of space, this is still a vital
-part of the operating system which should allow very fast access to its elements. For future
-optimisation we might look at a new type of data structure that would allow better performace.
-
+4. We have used an array of size 64 to store 64 priority lists. This is due to
+the fact that this provides 64 adjacent memory location, that are usually
+faster to access when operating on this array and on the lists (i.e. for
+instance when next_thread_to_run() iterates through the array to find the next
+non-empty list of threads). Also the lists provide functionalities for adding
+at the front or back at the list in constant time; same happens when popping
+the list. Thus the complexity of moving a thread in the ready lists is constant.
+Although keeping an array of 64 lists in memory takes 1KB of space,
+this is still a vital part of the operating system which should allow very
+fast access to its elements. For future optimisation we might look at a new
+type of data structure that would allow better performace.
 
               ADVANCED SCHEDULER
               ==================
@@ -539,7 +542,7 @@ this as a global variable outside the interrupt context which also gives an
 expected amortised speedup. We have also used the function pointer entrypoints
 detailed above to avoid if(thread_mlfqs) checks.
 
-There is a negligable O(1) addition to the critical section in thread creation.
+There is a negligible O(1) addition to the critical section in thread creation.
 
 Reducing the size of critical sections in particular the complexity of 
 thread_tick leads to an amortised speedup in the scheduling performance.
@@ -557,23 +560,23 @@ approach would not yield any improvement in this case.
 
 In many of the situations we have decided to implement macros rather
 than functions. Although this is not usually good practice this would
-reduce the overhead caused by function calls.
+reduce the overhead caused by function calls. One notable example is 
+THREAD_FOREACH where the original implementation had a function pointer
+and thus was not (explicitly) inlineable.
 
-Also in order to speed up the calculation we have used bitwise arithmetic
-when multiplying or dividing by multiples of 2 (although in most of the cases 
-the compiler would optimise this, due to the optimisation barrier imposed
-on pintos this would probably not happen).
+In order to speed up calculations we have used bitwise arithmetic when
+multiplying or dividing by multiples of 2 (although in most of the cases 
+the compiler would optimise this) we cache certain constants and again
+our fixed point implementation is macro based to allow the compiler maxmimum
+leeway to perform in-situ optimisations.
  
-It is important to note that some of the function have been declared as inline
-(like thread_calc_recent_cpu or thread_calc_priority_mlfqs). This has been
-done to speed up the calculations processes in interrupt by avoiding function
-calls in loop and rather inserting the code of the function inisde the loop.
+Functions have been declared as inline where the hint would make a notable
+difference (e.g. thread_calc_recent_cpu or thread_calc_priority_mlfqs) again
+optimising the inner loop of THREAD_FOREACH.
 
 Some of the the variables like ready_threads have been declared as volatile
-in order to avoid any possible conflicts that might occur when the compiler
-tries to optimize the code and does register allocation (although during testing
-we have not encountered a scenario in which this might occur this is still
-a good thing to do).
+where appropriate though the memory barriers and the fact that Pintos has no
+multiprocessing makes this unncessary.
 
 For future optimisation we might have to look at ways of computing the values
 in as few steps as possible and also see if some more of the computations can
@@ -591,6 +594,16 @@ For the implementation of fixed-point arithmetic we have decided
 to use macros in order to compute the values required. As most of the
 fixed-point arithmetic is done inside the timer-interrupt speed is an
 issue and reducing the overhead of function calls is important.
+
+Macros provide the maximum performance and compiler optimisation leeway
+compared to function calls (even if inlined given the compiler settings
+used to build Pintos).
+
+We used two int32 typedefs, fixed and fp_int, to represent fixed point numbers 
+and make their use explicit in code. Operations on hardware integers give
+superior performance to ADTs and take greater advantage of compiler features.
+
+A disadvantage is a lack of typechecking and harder debugging.
 
                SURVEY QUESTIONS
                ================
