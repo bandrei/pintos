@@ -46,10 +46,10 @@ PURPOSE:
 
 ~~~~~~~~~~~~~~~~~~~thread.h~~~~~~~~~~~~~~~~~~~~~
 void thread_sleep(int64_t ticks);
-	- will put a thread asleep untill "ticks"
+    - will put a thread asleep untill "ticks"
 void thread_wake(int64_t ticks);
-	- will wake up al the threads if "ticks" ticks
-	have passed
+    - will wake up al the threads if "ticks" ticks
+    have passed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -162,15 +162,15 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int init_priority;			/* Initial priority when donation starts
-					   (i.e. priority to revert to when all
-					   of the donations have been removed */
-    struct lock *try_lock;		/* Hold the lock the current thread is
-					   trying to lock on */
-    struct list lock_list;		/* Hold a list of locks that another
-					   thread is trying to acquire from the
-					   current thread */
-    struct list_elem allelem;		/* List element for all threads list. */
+    int init_priority;            /* Initial priority when donation starts
+                       (i.e. priority to revert to when all
+                       of the donations have been removed */
+    struct lock *try_lock;        /* Hold the lock the current thread is
+                       trying to lock on */
+    struct list lock_list;        /* Hold a list of locks that another
+                       thread is trying to acquire from the
+                       current thread */
+    struct list_elem allelem;        /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -206,20 +206,20 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
-	int priority;
-	struct list_elem elem;		/* will e */
+    int priority;
+    struct list_elem elem;        /* will e */
   };
 
 -----------------------------------------------------------------------------
 New memebers:
 -----------------------------------------------------------------------------
 int priority 
-	- will store the priority of the thread that it is trying to acquire 
-	that lock if its priority is higher than the already existing priority
-	of the lock
+    - will store the priority of the thread that it is trying to acquire 
+    that lock if its priority is higher than the already existing priority
+    of the lock
 
 struct list_elem elem
-	- used for inserting the lock in a list
+    - used for inserting the lock in a list
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -278,10 +278,10 @@ priority: 20;                                               |
                        \\/                                      |
                     -------------       -------------           |
 THREAD 1            |  LOCK     |       |   LOCK     |          |
-trying LOCK B       |   A       |       |     C      |          |
-                    |pri: 20    |       |            |          |
+trying LOCK B       |    A      |       |     C      |          |
+                    |  pri: 20  |       |            |          |
 priority:17;        -------------       --------------          |
-new priority: 20;	locks held by the current thread        |
+new priority: 20;    locks held by the current thread           |
                     that another thread is trying to acquire    |
                     (locks stored in lock_list)                 |
 ----------------------------------------------------------------|
@@ -290,11 +290,11 @@ new priority: 20;	locks held by the current thread        |
                         |
 ------------------------|---------------------------------------|
                        \\/                                      |
-                        -------------	-------------           |
-THREAD 2                |   LOCK    |   |   LOCK    |           |
-priority: 16;           |     B	    |	|     D	    |           |
-new priority: 20        |    pri: 20|	|           |           |
-                        -------------	-------------           |
+                        -------------    -------------          |
+THREAD 2                |  LOCK     |    |   LOCK    |          |
+priority: 16;           |    B      |    |     D     |          |
+new priority: 20        |  pri: 20  |    |           |          |
+                        -------------    -------------          |
                       locks held by the current thread          |
                       that another thread is trying to acquire  |
                         (locks stored in lock_list)             |
@@ -413,7 +413,7 @@ avoided due to the fact that each function call adds to the complexity and also
 the operating system would have to jump to different memory locations to
 execute that function call whereas with our current implementation the code is
 truly inline. 
-	For the case of conditional variables (and sleeping threads as above)
+    For the case of conditional variables (and sleeping threads as above)
 such constraints are not required as the signaling and waiting call are or
 should be used in a non-interrupted context and thus the small improvement in
 efficiency can be traded-off for a more clear code.
@@ -453,7 +453,7 @@ type of data structure that would allow better performace.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-				IN THREAD.C
+                IN THREAD.C
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct thread
   {
@@ -478,23 +478,23 @@ void thread_set_priority_mlfqs (int new_priority);
 New members:
 ----------------------------------------------------------------------
  thread.recent_cpu
-	- fixed point recent_cpu per-thread statistic calculated as specified
+    - fixed point recent_cpu per-thread statistic calculated as specified
  thread.nice
-	- integer per-thread nice value
-	- Invariant: clamped between NICE_MIN and NICE_MAX
+    - integer per-thread nice value
+    - Invariant: clamped between NICE_MIN and NICE_MAX
  load_avg
-	- fixed point global load average statistic
+    - fixed point global load average statistic
  ready_threads
-	- integer count of the number of threads with status READY or RUNNING
-	- Invariant: value is updated consistently with thread.priority
-	- READY_THREADS_CHECK can be set to assert this every tick
+    - integer count of the number of threads with status READY or RUNNING
+    - Invariant: value is updated consistently with thread.priority
+    - READY_THREADS_CHECK can be set to assert this every tick
  la_past_weight, la_cur_weight, fp_pri_max
-	- fixed point constants to optimise certain calculations every tick
+    - fixed point constants to optimise certain calculations every tick
  thread_tick_mlfqs, thread_set_priority_mlfqs
-	- mlfqs entrypoints for these functions that are set on startup
+    - mlfqs entrypoints for these functions that are set on startup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-							IN THREAD.H
+                            IN THREAD.H
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 typedef void fp_thread_tick (int64_t ticks);
@@ -520,16 +520,16 @@ mlfqs and normal kernel scheduling modes clearer and more efficient
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0		0	0	0	63	61	59	  A
- 4		4 	0	0	62	61	59	  A
- 8		8	0	0	61	61	59	  B
-12		8	4	0	61	60	59	  A
-16		12 	4	0	60 	60 	59	  B
-20		12	8	0	60 	59 	59 	  A
-24		16	8 	0 	59	59 	59 	  C
-28		16	8	4	59	59	58	  B
-32		16	12	4	59	58	58 	  A
-36		20	12	4	58	58	58 	  C
+ 0        0    0    0    63    61    59      A
+ 4        4     0    0    62    61    59      A
+ 8        8    0    0    61    61    59      B
+12        8    4    0    61    60    59      A
+16        12     4    0    60     60     59      B
+20        12    8    0    60     59     59       A
+24        16    8     0     59    59     59       C
+28        16    8    4    59    59    58      B
+32        16    12    4    59    58    58       A
+36        20    12    4    58    58    58       C
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
