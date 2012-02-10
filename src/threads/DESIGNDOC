@@ -11,16 +11,7 @@ Andrei Bara <ab6610@imperial.ac.uk>
 Alina Boghiu <ab3110@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
->> Note that when calculating the maximum or minimum
->> from a list we have not used the already existing
->> function (i.e. list_get_max and functions for defining
->> the order of elements) as we considered it to be more 
->> resource efficient although the amount of code is increased
->> (function calls and the structures created within each function
->> call could be quite high) the point was for most of the code
->> to execute as fast as possible wher interrupts are disabled
->> (so is the case when waking threads contained in
->> semaphores, and the waiting_list).
+None
 
 
                  ALARM CLOCK
