@@ -143,10 +143,11 @@ sema_up (struct semaphore *sema)
   sema->value++;
   intr_set_level (old_level);
   //yield the thread as soon as possible
-  if(intr_context())
-  	intr_yield_on_return;
-  if(old_level != INTR_OFF)
-  		thread_yield();
+  if(intr_context()) {
+  	intr_yield_on_return();
+  } else if(old_level != INTR_OFF) {
+  	thread_yield();
+  }
 }
 
 static void sema_test_helper (void *sema_);
@@ -481,7 +482,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   }
 }
 
-bool cond_var_less(const struct list_elem *a, const struct list_elem *b, void* aux){
+bool cond_var_less(const struct list_elem *a, const struct list_elem *b, void* aux UNUSED){
 		
 	struct semaphore_elem *s1 = list_entry (a, struct semaphore_elem, elem);
 	struct semaphore_elem *s2 = list_entry (b, struct semaphore_elem, elem);
