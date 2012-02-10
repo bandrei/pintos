@@ -386,24 +386,15 @@ Therefore in order to avoid this and any other potential race conditions we
 have decided to disable interrupt for a very short period of time while
 manipulating the priority of the thread.
 
-<<<<<<< HEAD
 Using a lock at this point might be inappropriate as for instance the thread
 could yield after acquiring the lock, but then another thread might at some
 point want to donate to this thread and since this thread has already acquired
-a lock to prevent priority change the donation process as the priority of the
-thread can no longer be modified thus leading to a potential deadlock
-situation.
-=======
-Using a lock at this point might be inappropriate as for instance the thread could yield
-after acquiring the lock, but then another thread might at some point want to donate to
-this thread and since this thread has already acquired a lock to prevent priority change
-during the donation process the priority of the thread can no longer be modified thus leading
-to a potential deadlock situation or some sort of infinite recursion. One other possible
-solution might use semaphores to block access to the donation process (but this might lead
-to situations in which resuming the donation process is no longer necessary or the new 
-priorities are wrong).
->>>>>>> df4c5e8f3638c035630c4d74918c778534bc26b9
-
+a lock to prevent priority change during the donation process the priority of
+the thread can no longer be modified thus leading to a potential deadlock
+situation or some sort of infinite recursion. One other possible solution might
+use semaphores to block access to the donation process (but this might lead to
+situations in which resuming the donation process is no longer necessary or the
+new priorities are wrong).
 
 ---- RATIONALE ----
 
