@@ -277,16 +277,16 @@ priority: 20;                                               |
 ------------------------|---------------------------------------|
                        \\/                                      |
                     -------------	-------------               |
-THREAD 1   		    |  LOCK	    |   |   LOCK     |              |
+THREAD 1            |  LOCK     |   |   LOCK     |              |
 trying LOCK B       |   A       |	|     C      |              |
                     |pri: 20    |	|            |              |
-priority:17;        -------------	-------------	            |
-new priority: 20;	locks held by the current thread	        |
+priority:17;        -------------	--------------              |
+new priority: 20;	locks held by the current thread            |
                     that another thread is trying to acquire    |
                     (locks stored in lock_list)                 |
 ----------------------------------------------------------------|
                         |
-			            |
+                        |
                         |
 ------------------------|---------------------------------------|
                        \\/                                      |
@@ -295,9 +295,9 @@ THREAD 2                |   LOCK    |   |   LOCK    |           |
 priority: 16;           |     B	    |	|     D	    |           |
 new priority: 20        |    pri: 20|	|           |           |
                         -------------	-------------           |
-			          locks held by the current thread          |
-			          that another thread is trying to acquire  |
-			            (locks stored in lock_list)             |
+                      locks held by the current thread          |
+                      that another thread is trying to acquire  |
+                        (locks stored in lock_list)             |
 ----------------------------------------------------------------|
 
 ---- ALGORITHMS ----
