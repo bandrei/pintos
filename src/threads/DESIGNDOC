@@ -581,7 +581,16 @@ In order to speed up calculations we have used bitwise arithmetic when
 multiplying or dividing by multiples of 2 (although in most of the cases 
 the compiler would optimise this) we cache certain constants and again
 our fixed point implementation is macro based to allow the compiler maxmimum
-leeway to perform in-situ optimisations.
+leeway to perform in-situ optimisations. With some mathematical insight it
+could be possible to implement the advanced scheduling behaviour with fewer
+operations each tick. Alternatively a circular buffer could be used to store
+load_avg values instead of recomputing recent_cpu values every 4 ticks and
+only computing them when used in the priority calculation every second.
+
+Ultimately call graph profiling would shed light on which optimisations would
+make the biggest performance difference especially to thread_tick() but this
+was not feasible in the time given Pintos's design and the complexities of
+profiling virtualised code.
  
 Functions have been declared as inline where the hint would make a notable
 difference (e.g. thread_calc_recent_cpu or thread_calc_priority_mlfqs) again
