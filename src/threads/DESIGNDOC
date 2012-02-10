@@ -121,7 +121,12 @@ thread_sleep function by being interrupted while inserting a sleeper element in
 the list. No special measures are needed to avoid this scenario as the current
 definition of list_insert would not leave the waiting_list in an inconsistent
 state at any time (this is due to the fact that the operations when the
-pointers themselves are changed, are atomic; possibly a "mov" instruction).
+pointers themselves are changed, are atomic; possibly a "mov" instruction and
+thus in a wors case scenario when the list is traversed during insertion it
+might skip the element that is to be inserted but this is not a problem when
+waking up the threads as even if the thread is not inserted fast enough it will
+be woken up at the the next tick; if (tmp_sleeper->wake_time > timer_ticks)
+will ensure that no threads forget to wake up).
 
 ---- RATIONALE ----
 
