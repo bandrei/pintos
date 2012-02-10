@@ -326,13 +326,13 @@ the thread with the highest priority to be scheduled immediately if possible.
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
-Firstly, lock_acquire will disble interrupt prior to the start of the donation
+Firstly, lock_acquire will disble interrupts prior to the start of the donation
 process and then check if the lock that the current thread is trying
 to acquire is indeed held by another thread. If such is the case then the
 current thread's try_lock member will point to this lock and the donation
 process is initiated by calling lock_donate.
 
-Lock donate will handle nested donation up to 8 nested threads as long as
+Lock_donate() will handle nested donation up to 8 nested threads as long as
 the thread that is being donated to is different from the current thread 
 (both conditions will prevent and will speed up the donation process ). 
 Also the priority donation process only takes place if the thread that is 
@@ -341,7 +341,7 @@ Then the lock that is trying to be acquired records the priority of the
 donating thread and gets added to the lock_list of its holding thread. Then, if
 the holding thread is THREAD_READY then thread_swap() is called and this
 function will move the holding thread in the lists of ready threads otherwise
-its priroity gets changed but the thread is not moved to a new list/location.
+its priroity gets changed, but the thread is not moved to a new list/location.
 If the holding thread is also trying to acquire another lock (by checking
 try_lock) the process continues up to 8 times, otherwise the nested donation
 stops.
