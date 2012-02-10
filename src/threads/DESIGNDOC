@@ -44,6 +44,15 @@ PURPOSE:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+~~~~~~~~~~~~~~~~~~~thread.h~~~~~~~~~~~~~~~~~~~~~
+void thread_sleep(int64_t ticks);
+	- will put a thread asleep untill "ticks"
+void thread_wake(int64_t ticks);
+	- will wake up al the threads if "ticks" ticks
+	have passed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 ~~~~~~~~~~~~~~~~~~synch.h~~~~~~~~~~~~~~~~~~~~~~
 struct sleeper
   {
@@ -67,11 +76,12 @@ PURPOSE:
 >> including the effects of the timer interrupt handler.
 
 The timer_sleep(int64_t ticks) method calls thread_sleep(int64_t ticks) which puts the
-current thread to sleep for 'ticks' number of timer ticks. It then calls thread_sleep()
-with an argument representing the time when the thread is due to wake up. thread_sleep()
-will then add the current running thread to the waiting_list by creating a semaphore,
-adding it to the list and then downing it (i.e. the sleeper struct is used in order
-to accomplish this). The current thread is then blocked and schedule() will be called.
+current thread to sleep untill (start+ticks) number of timer ticks, where start represents
+the number of ticks so far. It then calls thread_sleep() with an argument representing 
+the time when the thread is due to wake up. thread_sleep() will then add the current 
+running thread to the waiting_list by creating a semaphore, adding it to the list and then 
+downing it (i.e. the sleeper struct is used in order to accomplish this). 
+The current thread is then blocked and schedule() will be called.
 
 Also the timer interrupt handler will be the one incrementing the number of system tick
 and the one that will call thread_tick() which in turn will call thread_wake(). At this
@@ -98,6 +108,8 @@ In order to avoid race condition when timer_sleep() is called and thus
 thread_sleep(), we have used locks and semaphores. When inserting a new
 sleeper struct in the waiting_list we acquire waiting_lock, perform the 
 insertion and then release the lock. After this point the thread is being put to sleep.
+(Note: when the thread is woken up it will continue running from where it was stopped
+in thread_sleep(); it will remove itself from the list of waiters).
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
@@ -134,7 +146,7 @@ the complexity of function calls and reducing the stack usage is required.
 
 ---- DATA STRUCTURES ----
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~thread.h~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct thread
   {
     /* Owned by thread.c. */
@@ -189,7 +201,7 @@ int nice;		  --for later use in the BSD
 
 
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~synch.h~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct lock 
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
@@ -211,27 +223,7 @@ struct list_elem elem
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-
-
-
-
-
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-static struct list priority_list [PRI_MAX+1];  
-
-The variable will hold 64 priority lists that will be used by the threads,
-scheduling and the rest of the operating system. All of the THREAD_READY
-threads should be in one of these lists
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~synch.h~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct semaphore 
   {
     volatile unsigned value;             /* Current value. */
@@ -248,6 +240,21 @@ struct semaphore
 
 
 
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~thread.c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static struct list priority_list [PRI_MAX+1];  
+
+The variable will hold 64 priority lists that will be used by the threads,
+scheduling and the rest of the operating system. All of the THREAD_READY
+threads should be in one of these lists
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
@@ -259,39 +266,39 @@ The "data structure" used to track priority donation is formed of 2 components:
 
 
 ------------------------------------------------------------|
-															|
-THREAD 1   													|
-trying LOCK A												|
-priority: 20;   											|
+                                                            |
+THREAD 1                                                    |
+trying LOCK A                                               |
+priority: 20;                                               |
 ------------------------------------------------------------|
-						|
-						|
-						|
-------------------------|-----------------------------------|
-					   \\/									|
-					-------------	-------------			|
-THREAD 1   			| 	LOCK	|   |	LOCK	|			|
-trying LOCK B		|	  A 	|	|	  C     |			|
-					|new pri: 20|	|new pri:0;	|			|
-priority:17;		-------------	-------------			|
-new priority: 20;		locks held by the current thread	|
-					that another thread is trying to acquire|
-						(locks stored in lock_list)         |
-------------------------------------------------------------|
-						|
-						|
-						|
-------------------------|-----------------------------------|
-					   \\/									|
-					-------------	-------------			|
-THREAD 2   			| 	LOCK	|   |	LOCK	|			|
-priority: 16;		|	  B		|	|	  D		|			|
-new priority: 20;	|new pri: 20|	|new pri: 0 |			|
-					-------------	-------------			|
-						locks held by the current thread	|
-					that another thread is trying to acquire|
-						(locks stored in lock_list)         |
-------------------------------------------------------------|
+                        |
+                        |
+                        |
+------------------------|---------------------------------------|
+                       \\/                                      |
+                    -------------	-------------               |
+THREAD 1            |  LOCK     |   |   LOCK     |              |
+trying LOCK B       |   A       |	|     C      |              |
+                    |pri: 20    |	|            |              |
+priority:17;        -------------	--------------              |
+new priority: 20;	locks held by the current thread            |
+                    that another thread is trying to acquire    |
+                    (locks stored in lock_list)                 |
+----------------------------------------------------------------|
+                        |
+                        |
+                        |
+------------------------|---------------------------------------|
+                       \\/                                      |
+                        -------------	-------------           |
+THREAD 2                |   LOCK    |   |   LOCK    |           |
+priority: 16;           |     B	    |	|     D	    |           |
+new priority: 20        |    pri: 20|	|           |           |
+                        -------------	-------------           |
+                      locks held by the current thread          |
+                      that another thread is trying to acquire  |
+                        (locks stored in lock_list)             |
+----------------------------------------------------------------|
 
 ---- ALGORITHMS ----
 
