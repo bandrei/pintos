@@ -788,7 +788,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  
+  t->pagedir= pagedir_create();
   if (!thread_mlfqs) {
 	t->init_priority = priority;
     t->priority = priority;
