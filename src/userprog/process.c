@@ -17,11 +17,16 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "userprog/syscall.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
-
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+struct arg_elem
+{
+	unsigned int address;
+	struct list_elem elem;
+};
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -39,12 +44,12 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  
+  char f_name[16];
+  char delim = ' ';
+  strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
   /* Create a new thread to execute FILE_NAME. */
-	//printf("Filename: %s \n",fn_copy);
-  //char *file_exec_save;
-  //char *file_exec = strtok_r(file_name, " ", &file_exec_save);
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -55,51 +60,68 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name;
+  char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+
+    /* Get file name from file_name "page" */
+  char f_name[16];
+  char delim = ' ';
+  strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-	//printf("0 \n ");
-  /*char *file_exec_save;
-  char *file_name = strtok_r(file_name_, " ", &file_exec_save);*/
-  success = load (file_name, &if_.eip, &if_.esp);
-  
-  //set up the variables
- /*
-  char *token;
-  unsigned int blocks = 0;
-  for(token = strtok_r(file_name_, " ", &file_exec_save); token != NULL; 
-	  token = strtok_r(NULL, " ", &file_exec_save)){ 
-		  	
-		if_.esp -= (strlen(token)+1);
-		//fill with string
-		memcpy(if_.esp, token, (strlen(token)+1));
-		blocks += (strlen(token)+1);
-  }
-  //do the padding
-  //17 bytes 17 % 4 = 1 4-1-1 = 3
-  int blocks_to_pad = 3-(blocks % 4);
-  int i;
-  for(i = 0; i< blocks_to_pad; i++){
-  	if_.esp -= 1;
-	//pad with one byte
-    //memset(if_.esp, 0 , 1);
-  }
-  */
+  success = load (f_name, &if_.eip, &if_.esp);
 
-  /* If load failed, quit. */
-  palloc_free_page (file_name);
-  if (!success) {
-    thread_exit ();
-	//printf("not loaded \n");
+
+  /* Put elements on the stack here */
+  char *token;
+  char *token_saver;
+  unsigned int token_size_full = 0;
+  struct list argument_list;
+  list_init(&argument_list);
+  struct arg_elem *tmp_arg;
+  for (token = strtok_r (file_name, " ", &token_saver); token != NULL;
+        token = strtok_r (NULL, " ", &token_saver))
+  {
+	 token_size_full = strlen(token) + 1;
+   
+  	if_.esp = (char *)if_.esp - token_size_full;
+	tmp_arg = malloc(sizeof(struct arg_elem));
+    tmp_arg->address = (int)if_.esp;
+	list_push_front(&argument_list,&tmp_arg->elem);
+    strlcpy(if_.esp, token, token_size_full); 
   }
-	
   
+  //word-align the stack
+  if_.esp = (char *)if_.esp -  ((unsigned int)if_.esp % 4);
+
+ 
+  //Put the arguments as pointers
+  if_.esp = (char *)if_.esp - 4; //argv[argc]
+ 
+  struct list_elem *it;
+ //printf("%d list size ", list_size(&argument_list));
+
+  for(it = list_begin(&argument_list); it != list_end(&argument_list); 
+		it= list_next(it))
+  {
+	tmp_arg = list_entry(it, struct arg_elem, elem);
+	if_.esp = (char *)if_.esp - 4; 
+	*(int*)if_.esp = tmp_arg->address;
+  }
+  // put argc
+  if_.esp = (char *)if_.esp-4;
+  *(int *)if_.esp = list_size(&argument_list);
+
+  /* If load failed, quit. */ 
+  palloc_free_page (file_name);
+  if (!success) 
+    thread_exit ();
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -122,7 +144,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  while(true)
+	barrier();
 }
 
 /* Free the current process's resources. */
@@ -165,7 +188,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -249,6 +272,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -256,17 +280,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  printf("%s name", file_name);
   file = filesys_open (file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-  else
-  {
-	printf("load ok");
-	}
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -354,7 +373,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -502,6 +521,3 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
-
-
