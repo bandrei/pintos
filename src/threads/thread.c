@@ -510,7 +510,6 @@ _thread_create (const char *name, int priority,
     // this occurs before scheduling the thread
     *t_ref = t;
   }
-
   /* Add to run queue. */
   thread_unblock (t);
   thread_yield();

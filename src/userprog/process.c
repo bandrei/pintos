@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 
@@ -40,7 +41,10 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+	//printf("Filename: %s \n",fn_copy);
+  char *file_exec_save;
+  char *file_exec = strtok_r(file_name, " ", &file_exec_save);
+  tid = thread_create (file_exec, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -51,7 +55,6 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
 
@@ -60,13 +63,41 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+	//printf("0 \n ");
+  char *file_exec_save;
+  char *file_name = strtok_r(file_name_, " ", &file_exec_save);
   success = load (file_name, &if_.eip, &if_.esp);
+  
+  //set up the variables
+  char *token;
+  unsigned int blocks = 0;
+  for(token = strtok_r(file_name_, " ", &file_exec_save); token != NULL; 
+	  token = strtok_r(NULL, " ", &file_exec_save)){ 
+		  	
+		if_.esp -= (strlen(token)+1);
+		//fill with string
+		memcpy(if_.esp, token, (strlen(token)+1));
+		blocks += (strlen(token)+1);
+  }
+  //do the padding
+  //17 bytes 17 % 4 = 1 4-1-1 = 3
+  int blocks_to_pad = 3-(blocks % 4);
+  int i;
+  for(i = 0; i< blocks_to_pad; i++){
+  	if_.esp -= 1;
+	//pad with one byte
+    //memset(if_.esp, 0 , 1);
+  }
+  
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
     thread_exit ();
-
+	//printf("not loaded \n");
+  }
+	
+  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -438,7 +469,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE-12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }

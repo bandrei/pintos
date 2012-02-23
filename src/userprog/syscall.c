@@ -5,8 +5,6 @@
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
-static int get_user (const uint8_t *uaddr);
-static bool put_user (uint8_t *udst, uint8_t byte);
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -43,6 +41,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+ // while(true);
   printf ("system call!\n");
   thread_exit ();
 }
