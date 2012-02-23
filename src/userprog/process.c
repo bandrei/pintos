@@ -42,9 +42,9 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
 	//printf("Filename: %s \n",fn_copy);
-  char *file_exec_save;
-  char *file_exec = strtok_r(file_name, " ", &file_exec_save);
-  tid = thread_create (file_exec, PRI_DEFAULT, start_process, fn_copy);
+  //char *file_exec_save;
+  //char *file_exec = strtok_r(file_name, " ", &file_exec_save);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -55,6 +55,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  char *file_name = file_name;
   struct intr_frame if_;
   bool success;
 
@@ -64,11 +65,12 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 	//printf("0 \n ");
-  char *file_exec_save;
-  char *file_name = strtok_r(file_name_, " ", &file_exec_save);
+  /*char *file_exec_save;
+  char *file_name = strtok_r(file_name_, " ", &file_exec_save);*/
   success = load (file_name, &if_.eip, &if_.esp);
   
   //set up the variables
+ /*
   char *token;
   unsigned int blocks = 0;
   for(token = strtok_r(file_name_, " ", &file_exec_save); token != NULL; 
@@ -88,7 +90,7 @@ start_process (void *file_name_)
 	//pad with one byte
     //memset(if_.esp, 0 , 1);
   }
-  
+  */
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -254,12 +256,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  printf("%s name", file_name);
   file = filesys_open (file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  else
+  {
+	printf("load ok");
+	}
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
