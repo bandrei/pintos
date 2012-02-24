@@ -113,10 +113,16 @@ start_process (void *file_name_)
 	if_.esp = (char *)if_.esp - 4; 
 	*(int*)if_.esp = tmp_arg->address;
   }
+  //put argv
+  unsigned int tmp_esp = (int *)if_.esp;
+  if_.esp = (char *)if_.esp - 4;
+  *(int *)if_.esp = tmp_esp;
+
   // put argc
   if_.esp = (char *)if_.esp-4;
   *(int *)if_.esp = list_size(&argument_list);
 
+  if_.esp = (char *)if_.esp - 4;
   /* If load failed, quit. */ 
   palloc_free_page (file_name);
   if (!success) 
