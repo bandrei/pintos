@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/synch.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -125,6 +126,8 @@ start_process (void *file_name_)
   *(int *)if_.esp = list_size(&argument_list);
 
   if_.esp = (char *)if_.esp - 4;
+  hex_dump(if_.esp, if_.esp, 100, true);
+
   }
   /* If load failed, quit. */ 
   palloc_free_page (file_name);

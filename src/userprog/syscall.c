@@ -5,6 +5,19 @@
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
+static void sys_halt(struct intr_frame*);
+static void sys_exit(struct intr_frame*);
+static void sys_exec(struct intr_frame*);
+static void sys_wait(struct intr_frame*);
+static void sys_create(struct intr_frame*);
+static void sys_remove(struct intr_frame*);
+static void sys_open(struct intr_frame*);
+static void sys_filesize(struct intr_frame*);
+static void sys_read(struct intr_frame*);
+static void sys_write(struct intr_frame*);
+static void sys_seek(struct intr_frame*);
+static void sys_tell(struct intr_frame*);
+static void sys_close(struct intr_frame*);
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -39,12 +52,152 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f)
 {
- // while(true);
-  hex_dump(0,f->esp,100,true);
-  printf("System call : %d", *(int *)f->esp);
-  printf("System fd: %d", *(int *)f->esp++);
-  printf ("system call!\n");
-  thread_exit ();
+
+  //get system call number and call appropriate function
+  switch(*(unsigned int *)f->esp)
+  {
+  case SYS_HALT:
+	  sys_halt(f);
+	  break;
+  case SYS_EXIT:
+	  sys_exit(f);
+	  break;
+	  /* Terminate this process. */
+  case SYS_EXEC:
+	  /* Start another process. */
+	  sys_exec(f);
+	  break;
+  case SYS_WAIT:
+	  /* Wait for a child process to die. */
+	  sys_wait(f);
+	  break;
+  case SYS_CREATE:
+	  /* Create a file. */
+	  sys_create(f);
+	  break;
+  case   SYS_REMOVE:
+	  /* Delete a file. */
+	  sys_remove(f);
+	  	  break;
+  case   SYS_OPEN:
+	  /* Open a file. */
+	  sys_open(f);
+	  	  break;
+  case   SYS_FILESIZE:
+	  /* Obtain a file's size. */
+	  sys_filesize(f);
+	  	  break;
+
+  case   SYS_READ:
+	  /* Read from a file. */
+	  sys_read(f);
+	  break;
+  case   SYS_WRITE:                  /* Write to a file. */
+	  sys_write(f);
+	  break;
+
+  case   SYS_SEEK:
+	  /* Change position in a file. */
+	  sys_seek(f);
+	  break;
+  case   SYS_TELL:
+	  /* Report current position in a file. */
+	  sys_tell(f);
+	  break;
+  case   SYS_CLOSE:
+	  /* Close a file. */
+	  sys_close(f);
+	  break;
+  }
+
 }
+
+static void sys_halt(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_exit(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_exec(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_wait(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_create(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_remove(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_open(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_filesize(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_read(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+
+
+static void sys_write(struct intr_frame *f)
+{
+
+	int *tmp_esp = f->esp;
+	f->eax = 56;
+	//hex_dump(0,f->esp,100,true);
+	//printf("System call : %d", *tmp_esp++);
+	//printf("System fd: %d", *tmp_esp++);
+	//printf ("system call!\n");
+}
+
+static void sys_seek(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_tell(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+static void sys_close(struct intr_frame *f)
+{
+
+	thread_exit();
+}
+
+
+
