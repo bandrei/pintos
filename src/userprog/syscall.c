@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
+static void buffer_check (char *buff, size_t n);
 static void sys_halt(struct intr_frame*);
 static void sys_exit(struct intr_frame*);
 static void sys_exec(struct intr_frame*);
@@ -198,6 +199,5 @@ static void sys_close(struct intr_frame *f)
 
 	thread_exit();
 }
-
 
 
