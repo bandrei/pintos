@@ -484,7 +484,12 @@ _thread_create (const char *name, int priority,
   }
 
   //add child thread to parent thread's list of children
+  t->parent = parent;
   list_push_back(&parent->children_info_list,&t->child_elem);
+  struct child_terminate *term_aux = malloc(sizeof(struct child_terminate));
+  term_aux->child_tid = t->tid;
+  term_aux->exit_status= -1; //something went wrong if still -1;
+  list_push_back(&parent->terminated_children, &term_aux->termin_elem);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -798,6 +803,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->try_lock = NULL;
   list_init(&t->lock_list);
   list_init(&t->children_info_list);
+  list_init(&t->terminated_children);
   sema_init(&t->ready_to_kill,0);
   sema_init(&t->ready_to_die,0);
   t->parent_waiting = false;

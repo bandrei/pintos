@@ -90,13 +90,14 @@ start_process (void *file_name_)
   for (token = strtok_r (file_name, " ", &token_saver); token != NULL;
         token = strtok_r (NULL, " ", &token_saver))
   {
-	 token_size_full = strlen(token) + 1;
+	 token_size_full = strlen(token)+1;
    
   	if_.esp = (char *)if_.esp - token_size_full;
 	tmp_arg = malloc(sizeof(struct arg_elem));
     tmp_arg->address = (int)if_.esp;
 	list_push_front(&argument_list,&tmp_arg->elem);
-    strlcpy(if_.esp, token, token_size_full); 
+    strlcpy(if_.esp, token, token_size_full);
+
   }
   
   //word-align the stack
@@ -179,6 +180,26 @@ process_wait (tid_t child_tid UNUSED)
 		  }
 	  }
   }
+
+  //iterate through the list of saved children info
+  //maybe the child has already finished executing/died
+
+  struct child_terminate *child_nfo;
+  struct list_elem *nfo_it;
+  for(nfo_it = list_begin(&cur->children_info_list); nfo_it != list_end(&cur->children_info_list);
+  				  nfo_it = list_next(it))
+  {
+  		child_nfo = list_entry(nfo_it,struct child_terminate, termin_elem);
+  		if(child_nfo->child_tid == child_tid)
+  		{
+  			int e_status = child_nfo->exit_status;
+  			list_remove(&child_nfo->termin_elem);
+  			free(child_nfo);
+  			return e_status;
+  		}
+  			//no need to remove child from list as the list will be destroyed
+  }
+
   return -1;
 }
 

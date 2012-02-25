@@ -100,12 +100,12 @@ struct thread
     struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
 					   from the current thread */
     struct list_elem allelem;		/* List element for all threads list. */
-
+    struct thread *parent;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
     /* User thread variables*/
     struct list children_info_list;
+    struct list terminated_children;
     struct list_elem child_elem;
     struct semaphore ready_to_kill;
     struct semaphore ready_to_die;
@@ -124,6 +124,13 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct child_terminate
+{
+	tid_t child_tid;
+	int exit_status;
+	struct list_elem termin_elem;
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

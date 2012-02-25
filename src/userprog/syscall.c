@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 #include "lib/kernel/console.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -61,7 +62,8 @@ buffer_read_check (char *buff, size_t n)
 	unsigned int i;
 	for(i = 0; i<n; i++)
 	{
-		if(get_user(buff) == -1)
+
+		if(buff >= PHYS_BASE || get_user(buff) == -1)
 			return false;
 		buff++;
 	}
@@ -73,8 +75,56 @@ _sys_exit (int status)
 {
 	struct thread *cur = thread_current();
 	cur->exit_status = status;
-	sema_up(&cur->ready_to_die);
-	sema_down(&cur->ready_to_kill);
+	//traverse list of children and set their parent to null
+	struct thread *iterate_thread;
+	struct list_elem *it;
+	for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
+			  it = list_next(it))
+	{
+		iterate_thread = list_entry(it,struct thread, child_elem);
+		iterate_thread->parent = NULL;
+		iterate_thread->parent_waiting = false;
+		//no need to remove child from list as the list will be destroyed
+	}
+	//clear the list of terminated child info
+	struct child_terminate *del_elem;
+	struct list_elem *del_it;
+	for(del_it = list_begin(&cur->children_info_list); del_it != list_end(&cur->children_info_list);
+				  del_it = list_next(it))
+	{
+			del_elem = list_entry(del_it,struct child_terminate, termin_elem);
+			list_remove(&del_elem->termin_elem);
+			free(del_elem);
+			//no need to remove child from list as the list will be destroyed
+	}
+	//-----------------------------
+	if(cur->parent != NULL)
+	{
+		if(cur->parent_waiting)
+		{
+			sema_up(&cur->ready_to_die);
+			sema_down(&cur->ready_to_kill);
+		}
+		else
+		{
+			//set the exit status in the parent's list of
+			//terminated threads since the parent
+			//has not called wait() yet
+			struct child_terminate *tmp_saved_child;
+			struct list_elem *it_s_c;
+			for(it_s_c = list_begin(&cur->parent->terminated_children);
+						it_s_c != list_end(&cur->parent->terminated_children);
+						  it_s_c = list_next(it_s_c))
+			{
+				tmp_saved_child = list_entry(it_s_c,struct child_terminate, termin_elem);
+				if(tmp_saved_child->child_tid == cur->tid)
+				{
+					tmp_saved_child->exit_status = cur->exit_status;
+					break;
+				}
+			}
+		}
+	}
 	thread_exit();
 }
 
