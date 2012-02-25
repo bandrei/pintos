@@ -126,7 +126,6 @@ start_process (void *file_name_)
   *(int *)if_.esp = list_size(&argument_list);
 
   if_.esp = (char *)if_.esp - 4;
-  hex_dump(if_.esp, if_.esp, 100, true);
 
   }
   /* If load failed, quit. */ 
