@@ -42,6 +42,8 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
  // while(true);
+  printf("System call : %d", *(int *)f->esp);
+  prtinf("System fd: %d", *(int *)f->esp++);
   printf ("system call!\n");
   thread_exit ();
 }
