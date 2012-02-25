@@ -155,8 +155,31 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true)
-	barrier();
+ //iterate through the list of child processes
+  struct thread *cur = thread_current();
+  struct thread *iterate_thread;
+  struct list_elem *it;
+  for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
+		  it = list_next(it))
+  {
+	  iterate_thread = list_entry(it,struct thread, child_elem);
+	  if(iterate_thread->tid == child_tid){
+		  if(iterate_thread->parent_waiting){
+			  return -1;
+		  }
+		  else
+		  {
+			  iterate_thread->parent_waiting = true;
+			  sema_down(&iterate_thread->ready_to_die);
+			  int e_status = iterate_thread->exit_status;
+			  //remove from the list
+			  list_remove(&iterate_thread->child_elem);
+			  sema_up(&iterate_thread->ready_to_kill);
+			  return (e_status == -1 ) ? -1 : e_status;
+		  }
+	  }
+  }
+  return -1;
 }
 
 /* Free the current process's resources. */

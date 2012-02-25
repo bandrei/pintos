@@ -483,6 +483,9 @@ _thread_create (const char *name, int priority,
     thread_calc_priority_mlfqs(t, NULL);
   }
 
+  //add child thread to parent thread's list of children
+  list_push_back(&parent->children_info_list,&t->child_elem);
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -794,6 +797,10 @@ init_thread (struct thread *t, const char *name, int priority)
   
   t->try_lock = NULL;
   list_init(&t->lock_list);
+  list_init(&t->children_info_list);
+  sema_init(&t->ready_to_kill,0);
+  sema_init(&t->ready_to_die,0);
+  t->parent_waiting = false;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

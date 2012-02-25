@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "lib/kernel/console.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -21,6 +22,8 @@ static void sys_write(struct intr_frame*);
 static void sys_seek(struct intr_frame*);
 static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
+static void _sys_exit();
+static struct lock file_lock;
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -63,6 +66,16 @@ buffer_read_check (char *buff, size_t n)
 		buff++;
 	}
 	return true;
+}
+
+static void
+_sys_exit (int status)
+{
+	struct thread *cur = thread_current();
+	cur->exit_status = status;
+	sema_up(&cur->ready_to_die);
+	sema_down(&cur->ready_to_kill);
+	thread_exit();
 }
 
 void
@@ -142,8 +155,9 @@ static void sys_halt(struct intr_frame *f)
 
 static void sys_exit(struct intr_frame *f)
 {
-
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	_sys_exit(*tmp_esp);
 }
 
 static void sys_exec(struct intr_frame *f)
@@ -154,8 +168,9 @@ static void sys_exec(struct intr_frame *f)
 
 static void sys_wait(struct intr_frame *f)
 {
-
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	process_exit(*tmp_esp);
 }
 
 static void sys_create(struct intr_frame *f)

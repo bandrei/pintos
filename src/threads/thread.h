@@ -103,7 +103,15 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-        
+
+    /* User thread variables*/
+    struct list children_info_list;
+    struct list_elem child_elem;
+    struct semaphore ready_to_kill;
+    struct semaphore ready_to_die;
+    bool parent_waiting;
+    int exit_status;
+
     /* BSD */
     fixed recent_cpu;
     int nice;
