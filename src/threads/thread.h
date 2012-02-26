@@ -105,10 +105,10 @@ struct thread
     struct list_elem elem;              /* List element. */
     /* User thread variables*/
     struct list children_info_list;
-    struct list terminated_children;
     struct list_elem child_elem;
     struct semaphore ready_to_kill;
     struct semaphore ready_to_die;
+
     bool parent_waiting;
     int exit_status;
 
@@ -125,12 +125,6 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-struct child_terminate
-{
-	tid_t child_tid;
-	int exit_status;
-	struct list_elem termin_elem;
-};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
