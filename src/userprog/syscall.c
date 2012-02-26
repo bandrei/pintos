@@ -100,6 +100,12 @@ _sys_exit (int status)
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
+		//at this point the parent thread might have set
+		//its child_wait_tid and traversed the list in order
+		//to find out that the child thread has not died yet
+		//which means that by now or at some point in the future
+		//it will call sema_down on itself
+
 		//update the info of the current thread
 		//in the child_info list of the parent
 		for(it = list_begin(&cur->parent->children_info); it != list_end(&cur->parent->children_info);
@@ -122,109 +128,14 @@ _sys_exit (int status)
 
 	intr_set_level(old_level);
 
+	//if the parent is still waiting (i.e. it has already set
+	//its child_wait_tid flag then sema_up it
 	if(parent_waiting)
 	{
 		sema_up(parent_sema);
 	}
 
-	//cur->exit_status = status;
-	//traverse list of children and set their parent to null
-	/*lock_acquire(&cur->l_term_children);
-	struct thread *iterate_thread;
-	struct list_elem *it;
-	for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
-			  it = list_next(it))
-	{
-		iterate_thread = list_entry(it,struct thread, child_elem);
-		lock_acquire(&iterate_thread->t_lock);
-		iterate_thread->parent = NULL;
-		iterate_thread->parent_waiting = false;
-		lock_release(&iterate_thread->t_lock);
-		//no need to remove child from list as the list will be destroyed
-	}
-	lock_release(&cur->l_term_children);
 
-	//clear the list of terminated child info
-	lock_acquire(&cur->l_term_nfo);
-	struct child_terminate *del_elem;
-	struct list_elem *del_it;
-	for(del_it = list_begin(&cur->children_info_list); del_it != list_end(&cur->children_info_list);
-				  del_it = list_next(it))
-	{
-			del_elem = list_entry(del_it,struct child_terminate, termin_elem);
-			list_remove(&del_elem->termin_elem);
-			free(del_elem);
-
-	}
-	lock_release(&cur->l_term_nfo);
-
-	lock_acquire(&cur->t_lock);
-	lock_release(&cur->t_lock);
-
-	thread_exit();
-	//-----------------------------
-	if(cur->parent != NULL)
-	{
-		//if this variable is true it means that the parent
-		//has called wait()
-		sema_up(&cur->ready_to_die);
-		if(cur->parent_waiting)
-		{
-			sema_down(&cur->ready_to_kill);
-		}
-		else
-		{
-			//set the exit status in the parent's list of
-			//terminated threads since the parent
-			//has not called wait() yet
-			lock_acquire(&cur->parent->l_term_nfo);
-			struct child_terminate *tmp_saved_child;
-			struct list_elem *it_s_c;
-			for(it_s_c = list_begin(&cur->parent->terminated_children);
-						it_s_c != list_end(&cur->parent->terminated_children);
-						  it_s_c = list_next(it_s_c))
-			{
-				tmp_saved_child = list_entry(it_s_c,struct child_terminate, termin_elem);
-				if(tmp_saved_child->child_tid == cur->tid)
-				{
-					tmp_saved_child->exit_status = cur->exit_status;
-					tmp_saved_child->terminated = true;
-					break;
-				}
-			}
-			lock_release(&cur->parent->l_term_nfo);
-		}
-		lock_acquire(&cur->parent->l_term_children);
-		list_remove(&cur->child_elem);
-		lock_remove(&cur->parent->l_term_children);
-	}
-	else
-	{
-		list_remove(&cur->child_elem);
-	}
-   */
-	/*
-	struct thread *iterate_thread;
-	struct list_elem *it;
-	for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
-				  it = list_next(it))
-	{
-		iterate_thread = list_entry(it,struct thread, child_elem);
-		sema_up(&iterate_thread->ready_to_kill);
-	}
-
-	sema_up(&cur->ready_to_die);
-
-	sema_down(&cur->ready_to_kill);
-	/*enum intr_level old_level = intr_disable();
-	if(cur->parent!=NULL)
-	{
-
-		list_remove(&cur->child_elem);
-
-	}
-	intr_set_level(old_level);
-	*/
 	thread_exit();
 }
 

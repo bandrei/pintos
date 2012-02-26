@@ -180,57 +180,15 @@ process_wait (tid_t child_tid UNUSED)
 	  list_remove(&c_i->info_elem);
   }
   intr_set_level(old_level);
+
+  //if child thread has not already exited
+  //then wait for child to up our semaphore
+
   if(!already_exit)
   {
 	  sema_down(&cur->thread_wait);
   }
- //iterate through the list of child processes
 
-  //lock_acquire(&cur->l_term_children);
-  /*struct thread *iterate_thread;
-  struct list_elem *it;
-  for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
-		  it = list_next(it))
-  {
-	  iterate_thread = list_entry(it,struct thread, child_elem);
-	  if(iterate_thread->tid == child_tid){
-		  //if(iterate_thread->parent_waiting){
-		//	  return -1;
-		 // }
-		  //else
-		  //{
-			  sema_down(&iterate_thread->ready_to_die);
-			  e_status = iterate_thread->exit_status;
-			  //possibly list_remove the child thread as it
-			  //has terminated and up its semaphore
-			//  sema_up(&iterate_thread->ready_to_kill);
-			  break;
-		  //}
-	  }
-  }
-  //lock_release(&cur->l_term_children);
-
-  //iterate through the list of saved children info
-  //maybe the child has already finished executing/died
-  /*lock_acquire(&cur->l_term_nfo);
-  struct child_terminate *child_nfo;
-  struct list_elem *nfo_it;
-  for(nfo_it = list_begin(&cur->children_info_list); nfo_it != list_end(&cur->children_info_list);
-  				  nfo_it = list_next(nfo_it))
-  {
-  		child_nfo = list_entry(nfo_it,struct child_terminate, termin_elem);
-  		if(child_nfo->child_tid == child_tid && child_nfo->terminated)
-  		{
-  			//enum intr_level old_level = intr_disable();
-
-  			e_status = child_nfo->exit_status;
-  			list_remove(&child_nfo->termin_elem);
-  			free(child_nfo);
-  			break;
-  		}
-  			//no need to remove child from list as the list will be destroyed
-  }
-  lock_release(&cur->l_term_nfo);*/
   return e_status;
 }
 
