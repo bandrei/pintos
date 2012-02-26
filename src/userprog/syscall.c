@@ -74,7 +74,60 @@ static void
 _sys_exit (int status)
 {
 	struct thread *cur = thread_current();
-	cur->exit_status = status;
+	bool parent_waiting;
+	struct semaphore *parent_sema;
+	enum intr_level old_level = intr_disable();
+	//let the children know that we are dying
+	struct thread *child;
+	struct list_elem *it;
+	for(it=list_begin(&cur->children);it!=list_end(&cur->children);
+			it=list_next(it))
+	{
+		child = list_entry(it,struct thread, child_elem);
+		child->parent = NULL;
+	}
+
+	//clear the malloced list of child_info
+	struct child_info *info;
+	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
+			it = list_next(it))
+	{
+		info = list_entry(it, struct child_info, info_elem);
+		list_remove(&info->info_elem);
+		free(info);
+	}
+
+	//check if parent exists
+	if(cur->parent != NULL)
+	{
+		//update the info of the current thread
+		//in the child_info list of the parent
+		for(it = list_begin(&cur->parent->children_info); it != list_end(&cur->parent->children_info);
+					it = list_next(it))
+		{
+				info = list_entry(it, struct child_info, info_elem);
+				if(info->child_tid == cur->tid)
+				{
+					info->exit_status= status;
+					info->already_exit = true;
+					break;
+				}
+		}
+		if(cur->parent->child_wait_tid == cur->tid)
+		{
+			parent_waiting = true;
+			parent_sema = &cur->parent->thread_wait;
+		}
+	}
+
+	intr_set_level(old_level);
+
+	if(parent_waiting)
+	{
+		sema_up(parent_sema);
+	}
+
+	//cur->exit_status = status;
 	//traverse list of children and set their parent to null
 	/*lock_acquire(&cur->l_term_children);
 	struct thread *iterate_thread;
@@ -150,7 +203,7 @@ _sys_exit (int status)
 		list_remove(&cur->child_elem);
 	}
    */
-
+	/*
 	struct thread *iterate_thread;
 	struct list_elem *it;
 	for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);

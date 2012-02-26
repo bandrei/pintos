@@ -156,11 +156,38 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
- //iterate through the list of child processes
+
   struct thread *cur = thread_current();
   int e_status = -1;
+  struct child_info *c_i = NULL;
+  struct list_elem *info_it;
+  bool already_exit = false;
+  enum intr_level old_level = intr_disable(); //block preemption
+  cur->child_wait_tid = child_tid;
+  for(info_it = list_begin(&cur->children_info); info_it!=list_end(&cur->children_info);
+		  info_it = list_next(info_it))
+  {
+	  c_i = list_entry(info_it, struct child_info, info_elem);
+	  if(c_i->child_tid == child_tid)
+	  {
+		  e_status = c_i->exit_status;
+		  already_exit = c_i->already_exit;
+		  break;
+	  }
+  }
+  if(c_i != NULL)
+  {
+	  list_remove(&c_i->info_elem);
+  }
+  intr_set_level(old_level);
+  if(!already_exit)
+  {
+	  sema_down(&cur->thread_wait);
+  }
+ //iterate through the list of child processes
+
   //lock_acquire(&cur->l_term_children);
-  struct thread *iterate_thread;
+  /*struct thread *iterate_thread;
   struct list_elem *it;
   for(it = list_begin(&cur->children_info_list); it != list_end(&cur->children_info_list);
 		  it = list_next(it))

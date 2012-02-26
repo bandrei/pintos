@@ -104,13 +104,20 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     /* User thread variables*/
+    /*
     struct list children_info_list;
     struct list_elem child_elem;
     struct semaphore ready_to_kill;
     struct semaphore ready_to_die;
-
+    bool parent_alive;
     bool parent_waiting;
-    int exit_status;
+    int exit_status;*/
+
+    struct list children_info;
+    struct list children;
+    struct list_elem child_elem;
+    tid_t child_wait_tid;
+    struct semaphore thread_wait;
 
     /* BSD */
     fixed recent_cpu;
@@ -125,6 +132,13 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+struct child_info
+{
+	tid_t child_tid;
+	int exit_status;
+	bool already_exit;
+	struct list_elem info_elem;
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

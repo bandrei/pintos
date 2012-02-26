@@ -180,7 +180,7 @@ thread_init (void)
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
-  sema_init(&initial_thread->ready_to_kill,1); //special case for initial thread
+  //sema_init(&initial_thread->ready_to_kill,1); //special case for initial thread
   ready_threads++;
   if (thread_mlfqs) {
     initial_thread->nice = 0;
@@ -486,7 +486,13 @@ _thread_create (const char *name, int priority,
 
   //add child thread to parent thread's list of children
   t->parent = parent;
-  list_push_back(&parent->children_info_list,&t->child_elem);
+  t->child_wait_tid = -1; //this mean no waiting has been set
+  struct child_info *info = malloc(sizeof(struct child_info));
+  info->child_tid = t->tid;
+  info->exit_status = -1;
+  info->already_exit = false;
+  list_push_back(&parent->children,&t->child_elem);
+
 
 
   /* Prepare thread for first run by initializing its stack.
@@ -800,10 +806,13 @@ init_thread (struct thread *t, const char *name, int priority)
   
   t->try_lock = NULL;
   list_init(&t->lock_list);
-  list_init(&t->children_info_list);
-  sema_init(&t->ready_to_kill,0);
-  sema_init(&t->ready_to_die,0);
-  t->parent_waiting = false;
+  list_init(&t->children);
+  list_init(&t->children_info);
+  sema_init(&t->thread_wait,0);
+  //list_init(&t->children_info_list);
+  //sema_init(&t->ready_to_kill,0);
+ // sema_init(&t->ready_to_die,0);
+  //t->parent_waiting = false;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
