@@ -23,7 +23,7 @@ static void sys_write(struct intr_frame*);
 static void sys_seek(struct intr_frame*);
 static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
-static void _sys_exit();
+static void _sys_exit(int status, bool msg_print);
 static struct lock file_lock;
 
 /* Reads a byte at user virtual address UADDR.
@@ -71,7 +71,7 @@ buffer_read_check (char *buff, size_t n)
 }
 
 static void
-_sys_exit (int status)
+_sys_exit (int status, bool msg_print)
 {
 	struct thread *cur = thread_current();
 	bool parent_waiting;
@@ -128,6 +128,10 @@ _sys_exit (int status)
 
 	intr_set_level(old_level);
 
+	if(msg_print)
+		{
+			printf("%s: exit(%d)\n",cur->name,status);
+		}
 	//if the parent is still waiting (i.e. it has already set
 	//its child_wait_tid flag then sema_up it
 	if(parent_waiting)
@@ -218,7 +222,7 @@ static void sys_exit(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	_sys_exit(*tmp_esp);
+	_sys_exit(*tmp_esp,true);
 }
 
 static void sys_exec(struct intr_frame *f)
