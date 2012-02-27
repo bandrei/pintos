@@ -154,12 +154,7 @@ syscall_handler (struct intr_frame *f)
 {
 
   //get system call number and call appropriate function
-  //check the esp pointer
-  if(!buffer_read_check((char *)f->esp,4))
-  {
-	  _sys_exit(-1,true);
-	  return; //just in case
-  }
+
   //printf("handler %d \n",*((int *)f->esp));
   switch(*(unsigned int *)f->esp)
   {
