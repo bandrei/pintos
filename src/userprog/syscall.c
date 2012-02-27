@@ -23,7 +23,6 @@ static void sys_write(struct intr_frame*);
 static void sys_seek(struct intr_frame*);
 static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
-static void _sys_exit(int status, bool msg_print);
 static struct lock file_lock;
 
 /* Reads a byte at user virtual address UADDR.
@@ -70,7 +69,7 @@ buffer_read_check (char *buff, size_t n)
 	return true;
 }
 
-static void
+void
 _sys_exit (int status, bool msg_print)
 {
 	struct thread *cur = thread_current();
@@ -155,6 +154,13 @@ syscall_handler (struct intr_frame *f)
 {
 
   //get system call number and call appropriate function
+  //check the esp pointer
+  if(!buffer_read_check((char *)f->esp,4))
+  {
+	  _sys_exit(-1,true);
+	  return; //just in case
+  }
+  //printf("handler %d \n",*((int *)f->esp));
   switch(*(unsigned int *)f->esp)
   {
   case SYS_HALT:
@@ -209,6 +215,7 @@ syscall_handler (struct intr_frame *f)
 	  /* Close a file. */
 	  sys_close(f);
 	  break;
+  default: _sys_exit(-1,true);
   }
 
 }
