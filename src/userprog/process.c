@@ -175,10 +175,6 @@ process_wait (tid_t child_tid UNUSED)
 		  break;
 	  }
   }
-  if(c_i != NULL)
-  {
-	  list_remove(&c_i->info_elem);
-  }
   intr_set_level(old_level);
 
   //if child thread has not already exited
@@ -187,6 +183,14 @@ process_wait (tid_t child_tid UNUSED)
   if(!already_exit)
   {
 	  sema_down(&cur->thread_wait);
+	  enum intr_level old_level = intr_disable();
+	  if(c_i != NULL) e_status = c_i->exit_status;
+	  intr_set_level(old_level);
+  }
+
+  if(c_i != NULL)
+  {
+ 	  list_remove(&c_i->info_elem);
   }
 
   return e_status;

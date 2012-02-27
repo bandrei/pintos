@@ -179,6 +179,7 @@ thread_init (void)
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
+  initial_thread->parent = NULL;
   initial_thread->status = THREAD_RUNNING;
   //sema_init(&initial_thread->ready_to_kill,1); //special case for initial thread
   ready_threads++;
@@ -452,7 +453,7 @@ _thread_create (const char *name, int priority,
                thread_func *function, void *aux, struct thread **t_ref) 
 {
   struct thread *t;
-  struct thread *parent;
+  struct thread *parent = NULL;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
@@ -491,6 +492,7 @@ _thread_create (const char *name, int priority,
   info->child_tid = t->tid;
   info->exit_status = -1;
   info->already_exit = false;
+  list_push_back(&parent->children_info, &info->info_elem);
   list_push_back(&parent->children,&t->child_elem);
 
 

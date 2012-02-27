@@ -86,7 +86,6 @@ _sys_exit (int status, bool msg_print)
 		child = list_entry(it,struct thread, child_elem);
 		child->parent = NULL;
 	}
-
 	//clear the malloced list of child_info
 	struct child_info *info;
 	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
@@ -96,7 +95,6 @@ _sys_exit (int status, bool msg_print)
 		list_remove(&info->info_elem);
 		free(info);
 	}
-
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -126,12 +124,14 @@ _sys_exit (int status, bool msg_print)
 		}
 	}
 
+	list_remove(&cur->child_elem);
 	intr_set_level(old_level);
-
 	if(msg_print)
-		{
-			printf("%s: exit(%d)\n",cur->name,status);
-		}
+	{
+				printf("%s: exit(%d)\n",cur->name,status);
+	}
+
+
 	//if the parent is still waiting (i.e. it has already set
 	//its child_wait_tid flag then sema_up it
 	if(parent_waiting)
@@ -223,19 +223,26 @@ static void sys_exit(struct intr_frame *f)
 	int *tmp_esp = f->esp;
 	tmp_esp++;
 	_sys_exit(*tmp_esp,true);
+	//f->eax = *tmp_esp;
 }
 
 static void sys_exec(struct intr_frame *f)
 {
 
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	char *buff_addr = *tmp_esp;
+	tid_t pid = process_execute(buff_addr);
+	f->eax = pid;
+	//thread_exit();
 }
 
 static void sys_wait(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	process_exit(*tmp_esp);
+	f->eax=process_wait(*tmp_esp);
+
 }
 
 static void sys_create(struct intr_frame *f)
@@ -289,7 +296,8 @@ static void sys_write(struct intr_frame *f)
 		{
 			f->eax = 0;
 			//probably invoke exit() here
-			thread_exit();
+			_sys_exit(-1,true);
+			//thread_exit();
 		}
 	}
 	else
