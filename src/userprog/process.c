@@ -161,7 +161,7 @@ process_wait (tid_t child_tid UNUSED)
   int e_status = -1;
   struct child_info *c_i = NULL;
   struct list_elem *info_it;
-  bool already_exit = false;
+  bool already_exit = true;
   enum intr_level old_level = intr_disable(); //block preemption
   cur->child_wait_tid = child_tid;
   for(info_it = list_begin(&cur->children_info); info_it!=list_end(&cur->children_info);

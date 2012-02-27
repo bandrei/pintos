@@ -126,6 +126,7 @@ _sys_exit (int status, bool msg_print)
 
 	list_remove(&cur->child_elem);
 	intr_set_level(old_level);
+
 	if(msg_print)
 	{
 				printf("%s: exit(%d)\n",cur->name,status);
