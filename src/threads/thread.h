@@ -113,12 +113,16 @@ struct thread
     bool parent_waiting;
     int exit_status;*/
 
+    bool is_user_proc;
+
     /* Children information for implementing the wait system call*/
     struct list children_info;
     struct list children;
     struct list_elem child_elem;
     tid_t child_wait_tid;
     struct semaphore thread_wait;
+    tid_t exec_proc_pid;
+    struct semaphore child_start;
 
     /* Files queue*/
     struct list files_opened;

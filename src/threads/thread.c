@@ -487,6 +487,7 @@ _thread_create (const char *name, int priority,
 
   //add child thread to parent thread's list of children
   t->parent = parent;
+  t->parent->exec_proc_pid = tid;
   t->child_wait_tid = -1; //this mean no waiting has been set
   struct child_info *info = malloc(sizeof(struct child_info));
   info->child_tid = t->tid;
@@ -799,6 +800,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
+  t->is_user_proc = false;
+  t->exec_proc_pid = -1;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   if (!thread_mlfqs) {
@@ -812,6 +815,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children_info);
   list_init(&t->files_opened);
   sema_init(&t->thread_wait,0);
+  sema_init(&t->child_start,0);
+
   //list_init(&t->children_info_list);
   //sema_init(&t->ready_to_kill,0);
  // sema_init(&t->ready_to_die,0);

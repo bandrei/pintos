@@ -56,6 +56,31 @@ put_user (uint8_t *udst, uint8_t byte)
 //the user space and return true if that is the
 //case
 
+static void
+pointer_check(char *tmp_esp, size_t n)
+{
+	int i = 0;
+	if(n>0)
+	{
+		for(i=0;i<n;i++)
+		{
+			if(tmp_esp >= PHYS_BASE)
+				_sys_exit(-1,true);
+		}
+	}
+	else
+	{
+		do
+			{
+			 if(tmp_esp >= PHYS_BASE)
+					_sys_exit(-1,true);
+			 tmp_esp++;
+
+			}while(*tmp_esp != '\0');
+	}
+}
+
+
 static bool
 buffer_read_check (char *buff, size_t n)
 {
@@ -70,7 +95,7 @@ buffer_read_check (char *buff, size_t n)
 	return true;
 }
 static bool
-filename_check(char *buff)
+string_read_check(char *buff)
 {
 	do
 	{
@@ -78,9 +103,21 @@ filename_check(char *buff)
 			return false;
 		buff++;
 
-	}while(*buff != '\0');
+	}while(*buff != '\0' && *buff != '\n');
 	//maybe good to check if the file_name is longer
 	//than 0 bytes
+	return true;
+}
+static bool
+unsigned_check(char *buff)
+{
+	int i = 0;
+	for(i= 0;i<sizeof(unsigned);i++)
+	{
+		if(buff>=PHYS_BASE || get_user(buff)==-1)
+			return false;
+		buff++;
+	}
 	return true;
 }
 
@@ -88,7 +125,7 @@ void
 _sys_exit (int status, bool msg_print)
 {
 	struct thread *cur = thread_current();
-	bool parent_waiting;
+	bool parent_waiting = false;
 	struct semaphore *parent_sema;
 	enum intr_level old_level = intr_disable();
 	//let the children know that we are dying
@@ -102,13 +139,24 @@ _sys_exit (int status, bool msg_print)
 	}
 	//clear the malloced list of child_info
 	struct child_info *info;
+	it = list_begin(&cur->children_info);
+	while(it != list_end(&cur->children_info))
+	{
+		info = list_entry(it,struct child_info, info_elem);
+		it = info->info_elem.next;
+		list_remove(&info->info_elem);
+		info->info_elem.next = info->info_elem.prev = NULL;
+		free(info);
+	}/*
 	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
 			it = list_next(it))
 	{
 		info = list_entry(it, struct child_info, info_elem);
 		list_remove(&info->info_elem);
-		free(info);
-	}
+		info->info_elem.next = NULL;
+		info->info_elem.prev = NULL;
+		//free(info);
+	}*/
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -137,10 +185,8 @@ _sys_exit (int status, bool msg_print)
 			parent_sema = &cur->parent->thread_wait;
 		}
 	}
-
 	list_remove(&cur->child_elem);
 	intr_set_level(old_level);
-
 	if(msg_print)
 	{
 				printf("%s: exit(%d)\n",cur->name,status);
@@ -171,7 +217,9 @@ syscall_handler (struct intr_frame *f)
   //get system call number and call appropriate function
 
   //printf("handler %d \n",*((int *)f->esp));
-  switch(*(unsigned int *)f->esp)
+  //need to do checks here
+	pointer_check(f->esp, sizeof(int));
+	switch(*(unsigned int *)f->esp)
   {
   case SYS_HALT:
 	  sys_halt(f);
@@ -240,8 +288,9 @@ static void sys_exit(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+	pointer_check(tmp_esp, sizeof(int));
+	f->eax = *tmp_esp;
 	_sys_exit(*tmp_esp,true);
-	//f->eax = *tmp_esp;
 }
 
 static void sys_exec(struct intr_frame *f)
@@ -249,7 +298,9 @@ static void sys_exec(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(unsigned));
 	char *buff_addr = *tmp_esp;
+    pointer_check(buff_addr,0);
 	tid_t pid = process_execute(buff_addr);
 	f->eax = pid;
 	//thread_exit();
@@ -259,6 +310,7 @@ static void sys_wait(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(int));
 	f->eax=process_wait(*tmp_esp);
 
 }
@@ -268,22 +320,27 @@ static void sys_create(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
-	if(!filename_check(file_addr))
-		_sys_exit(-1,true); //faulty address in memory
-	else
-	{
-		tmp_esp++; //get the file size required for creation
-		if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
-			f->eax = false; //file creation failed
-		else f->eax = true; //file creation successfull
-	}
+	tmp_esp++; //get the file size required for creation
+	pointer_check(tmp_esp,sizeof(unsigned));
+	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
+		f->eax = false; //file creation failed
+	else f->eax = true; //file creation successfull
 }
 
 static void sys_remove(struct intr_frame *f)
 {
 
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(unsigned));
+	char *file_addr = *tmp_esp;
+	tmp_esp++; //get the file size required for creation
+	pointer_check(tmp_esp,sizeof(unsigned));
+	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
+		f->eax = false; //file creation failed
+	else f->eax = true; //file creation successfull
 }
 
 static void sys_open(struct intr_frame *f)
@@ -308,29 +365,26 @@ static void sys_read(struct intr_frame *f)
 
 static void sys_write(struct intr_frame *f)
 {
-
+	f->eax = 0;
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+    pointer_check(tmp_esp,sizeof(int));
 	if(*tmp_esp == 1)
 	{
 		tmp_esp++;
+		pointer_check(tmp_esp,sizeof(unsigned));
 		char *buff_addr = *tmp_esp;
 		tmp_esp++;
+		pointer_check(tmp_esp,sizeof(unsigned));
+		//split the buffer here if above 300 bytes probably
 		unsigned int buff_size = *tmp_esp;
-		if(buffer_read_check(buff_addr,buff_size)){
-			putbuf(buff_addr,buff_size);
-			f->eax = buff_size;
-		}
-		else
-		{
-			f->eax = 0;
-			//probably invoke exit() here
-			_sys_exit(-1,true);
-			//thread_exit();
-		}
+		putbuf(buff_addr,buff_size);
+		f->eax = buff_size;
+
 	}
 	else
 	{
+		//_sys_exit(-1,true);
 		//case for writing to a file here
 	}
 	//hex_dump(0,f->esp,100,true);

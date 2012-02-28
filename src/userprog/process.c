@@ -51,8 +51,12 @@ process_execute (const char *file_name)
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
+  //printf("%d in proc_exec", tid);
+
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+      palloc_free_page (fn_copy);
+  sema_down(&thread_current()->child_start);
+   tid = thread_current()->exec_proc_pid;
   thread_yield();
   return tid;
 }
@@ -65,7 +69,9 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  //this is a user process since it has been called
+  //using process execute
+  thread_current()->is_user_proc = true;
     /* Get file name from file_name "page" */
   char f_name[16];
   char delim = ' ';
@@ -130,9 +136,17 @@ start_process (void *file_name_)
 
   }
   /* If load failed, quit. */ 
-  palloc_free_page (file_name);
+  if(!success)
+ 	  thread_current()->parent->exec_proc_pid = -1;
+   if(thread_current()->parent != NULL)
+ 	  //rintf("here");
+ 	  sema_up(&thread_current()->parent->child_start);
+
+   palloc_free_page (file_name);
+
   if (!success) 
-    thread_exit ();
+    //thread_exit ();
+    _sys_exit(-1,false);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -184,13 +198,14 @@ process_wait (tid_t child_tid UNUSED)
   {
 	  sema_down(&cur->thread_wait);
 	  enum intr_level old_level = intr_disable();
+	  cur->child_wait_tid = -1;
 	  if(c_i != NULL) e_status = c_i->exit_status;
 	  intr_set_level(old_level);
   }
 
   if(c_i != NULL)
   {
- 	  list_remove(&c_i->info_elem);
+ 	  //list_remove(&c_i->info_elem);
   }
 
   return e_status;
