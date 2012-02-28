@@ -47,8 +47,9 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   
   char f_name[16];
-  char delim = ' ';
+  char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   //printf("%d in proc_exec", tid);
@@ -74,7 +75,7 @@ start_process (void *file_name_)
   thread_current()->is_user_proc = true;
     /* Get file name from file_name "page" */
   char f_name[16];
-  char delim = ' ';
+  char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
 
   /* Initialize interrupt frame and load executable. */
@@ -135,6 +136,7 @@ start_process (void *file_name_)
   if_.esp = (char *)if_.esp - 4;
 
   }
+
   /* If load failed, quit. */ 
   if(!success)
  	  thread_current()->parent->exec_proc_pid = -1;
@@ -142,7 +144,9 @@ start_process (void *file_name_)
  	  //rintf("here");
  	  sema_up(&thread_current()->parent->child_start);
 
+   //printf("Before Name %s :",thread_current()->name);
    palloc_free_page (file_name);
+   //printf("Name %s :",thread_current()->name);
 
   if (!success) 
     //thread_exit ();
@@ -205,7 +209,7 @@ process_wait (tid_t child_tid UNUSED)
 
   if(c_i != NULL)
   {
- 	  //list_remove(&c_i->info_elem);
+ 	  list_remove(&c_i->info_elem);
   }
 
   return e_status;

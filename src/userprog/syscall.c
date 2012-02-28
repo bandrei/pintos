@@ -146,7 +146,7 @@ _sys_exit (int status, bool msg_print)
 		it = info->info_elem.next;
 		list_remove(&info->info_elem);
 		info->info_elem.next = info->info_elem.prev = NULL;
-		free(info);
+		//free(info);
 	}/*
 	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
 			it = list_next(it))
@@ -189,6 +189,7 @@ _sys_exit (int status, bool msg_print)
 	intr_set_level(old_level);
 	if(msg_print)
 	{
+				//(char *)cur->name--;
 				printf("%s: exit(%d)\n",cur->name,status);
 	}
 

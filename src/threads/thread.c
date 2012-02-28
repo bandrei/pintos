@@ -803,6 +803,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->is_user_proc = false;
   t->exec_proc_pid = -1;
   strlcpy (t->name, name, sizeof t->name);
+
   t->stack = (uint8_t *) t + PGSIZE;
   if (!thread_mlfqs) {
 	t->init_priority = priority;
