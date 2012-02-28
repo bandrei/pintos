@@ -128,7 +128,7 @@ _sys_exit (int status, bool msg_print)
 	struct thread *cur = thread_current();
 	bool parent_waiting = false;
 	struct semaphore *parent_sema;
-	/*enum intr_level old_level = intr_disable();
+	enum intr_level old_level = intr_disable();
 	//let the children know that we are dying
 	struct thread *child;
 	struct list_elem *it;
@@ -151,7 +151,7 @@ _sys_exit (int status, bool msg_print)
 	}
 	/*
 	 * Close all files here while loop and call to file_close
-
+	 */
 
 	struct file *file;
 	it = list_begin(&cur->files_opened);
@@ -174,7 +174,7 @@ _sys_exit (int status, bool msg_print)
 		info->info_elem.next = NULL;
 		info->info_elem.prev = NULL;
 		//free(info);
-	}
+	}*/
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -205,25 +205,28 @@ _sys_exit (int status, bool msg_print)
 	}
 	list_remove(&cur->child_elem);
 	if(cur->our_file!=NULL)
-			file_allow_write(cur->our_file);
-	//if(cur->locked_on_file)
-			//lock_release(&file_lock);
+		//printf("denied write %d \n", cur->our_file->deny_write);
+		file_allow_write(cur->our_file);
 	//printf("Inode count %d ",*cur->our_file->inode->open_cnt);
-	intr_set_level(old_level);*/
+	intr_set_level(old_level);
 	if(msg_print)
 	{
 				//(char *)cur->name--;
 				printf("%s: exit(%d)\n",cur->name,status);
 	}
-
+	if(cur->locked_on_file)
+	{
+			lock_release(&file_lock);
+			cur->locked_on_file = false;
+	}
 
 	//allow writing to file
 	//if the parent is still waiting (i.e. it has already set
 	//its child_wait_tid flag then sema_up it
-	//if(parent_waiting)
-	//{
-		//sema_up(parent_sema);
-	//}
+	if(parent_waiting)
+	{
+		sema_up(parent_sema);
+	}
 
 
 	thread_exit();

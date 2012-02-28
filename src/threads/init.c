@@ -128,8 +128,6 @@ main (void)
 #endif
 
   printf ("Boot complete.\n");
-  file_lock = malloc(sizeof(struct lock));
-  lock_init (file_lock);
   /* Run actions specified on kernel command line. */
   run_actions (argv);
 

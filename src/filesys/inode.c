@@ -147,6 +147,7 @@ inode_reopen (struct inode *inode)
 {
   if (inode != NULL)
     inode->open_cnt++;
+  printf(" Open_cnt %d , deny_write_cnt %d \n", inode->open_cnt, inode->deny_write_cnt);
   return inode;
 }
 

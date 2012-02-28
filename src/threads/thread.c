@@ -25,7 +25,7 @@
    that are ready to run but not actually running. */
 static struct list waiting_list;
 static struct lock waiting_lock;
-
+struct lock file_lock;
 //array of priorities containing links of threads
 //should only contain ready threads (i.e. THREAD_READY)
 static struct list priority_list [PRI_MAX+1];  
@@ -181,6 +181,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->parent = NULL;
   initial_thread->status = THREAD_RUNNING;
+  lock_init(&file_lock);
+ // printf("Val %d val", initial_thread->is_user_proc);
   //sema_init(&file_lock,1);
   //file_lock = malloc(sizeof(struct lock));
     //lock_init (file_lock);

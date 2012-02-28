@@ -30,8 +30,8 @@ typedef int tid_t;
 #define NICE_MIN -20
 #define NICE_MAX 20
 
-static struct lock *file_lock;
 
+extern struct lock file_lock;
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
