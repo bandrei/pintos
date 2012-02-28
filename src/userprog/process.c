@@ -51,7 +51,7 @@ process_execute (const char *file_name)
   char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
   printf("try_lock");
-  //lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   //sema_down(&file_lock);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
