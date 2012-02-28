@@ -10,6 +10,7 @@
 static void syscall_handler (struct intr_frame *);
 static bool buffer_read_check (char *buff, size_t n);
 static bool buffer_write_check();
+static bool filename_check(char *buff);
 static void sys_halt(struct intr_frame*);
 static void sys_exit(struct intr_frame*);
 static void sys_exec(struct intr_frame*);
@@ -66,6 +67,20 @@ buffer_read_check (char *buff, size_t n)
 			return false;
 		buff++;
 	}
+	return true;
+}
+static bool
+filename_check(char *buff)
+{
+	do
+	{
+		if(buff >= PHYS_BASE || get_user(buff)== -1)
+			return false;
+		buff++;
+
+	}while(*buff != '\0');
+	//maybe good to check if the file_name is longer
+	//than 0 bytes
 	return true;
 }
 
@@ -217,8 +232,8 @@ syscall_handler (struct intr_frame *f)
 
 static void sys_halt(struct intr_frame *f)
 {
-
-	thread_exit();
+	shutdown_power_off();
+	//thread_exit();
 }
 
 static void sys_exit(struct intr_frame *f)
@@ -248,10 +263,21 @@ static void sys_wait(struct intr_frame *f)
 
 }
 
+//Create file
 static void sys_create(struct intr_frame *f)
 {
-
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	char *file_addr = *tmp_esp;
+	if(!filename_check(file_addr))
+		_sys_exit(-1,true); //faulty address in memory
+	else
+	{
+		tmp_esp++; //get the file size required for creation
+		if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
+			f->eax = false; //file creation failed
+		else f->eax = true; //file creation successfull
+	}
 }
 
 static void sys_remove(struct intr_frame *f)

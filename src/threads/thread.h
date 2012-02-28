@@ -113,12 +113,15 @@ struct thread
     bool parent_waiting;
     int exit_status;*/
 
+    /* Children information for implementing the wait system call*/
     struct list children_info;
     struct list children;
     struct list_elem child_elem;
     tid_t child_wait_tid;
     struct semaphore thread_wait;
 
+    /* Files queue*/
+    struct list files_opened;
     /* BSD */
     fixed recent_cpu;
     int nice;
@@ -138,6 +141,13 @@ struct child_info
 	int exit_status;
 	bool already_exit;
 	struct list_elem info_elem;
+};
+
+struct file_info
+{
+	int fd; //file descriptor
+	unsigned position; //current position in file
+	struct list_elem file_info_elem;
 };
 
 /* If false (default), use round-robin scheduler.
