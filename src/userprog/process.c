@@ -58,7 +58,6 @@ process_execute (const char *file_name)
       palloc_free_page (fn_copy);
   sema_down(&thread_current()->child_start);
    tid = thread_current()->exec_proc_pid;
-  thread_yield();
   return tid;
 }
 
