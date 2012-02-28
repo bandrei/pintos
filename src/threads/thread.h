@@ -30,6 +30,8 @@ typedef int tid_t;
 #define NICE_MIN -20
 #define NICE_MAX 20
 
+static struct lock *file_lock;
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -98,7 +100,7 @@ struct thread
 					   when all of the donations have been removed */
     struct lock *try_lock;		/* Hold the lock the current thread is trying to lock on */
     struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
-					   from the current thread */
+					   from the current thread (used in the donation process)*/
     struct list_elem allelem;		/* List element for all threads list. */
     struct thread *parent;
     /* Shared between thread.c and synch.c. */
@@ -124,8 +126,12 @@ struct thread
     tid_t exec_proc_pid;
     struct semaphore child_start;
 
+
     /* Files queue*/
+    struct file *our_file;
     struct list files_opened;
+    bool locked_on_file;
+
     /* BSD */
     fixed recent_cpu;
     int nice;
@@ -147,12 +153,7 @@ struct child_info
 	struct list_elem info_elem;
 };
 
-struct file_info
-{
-	int fd; //file descriptor
-	unsigned position; //current position in file
-	struct list_elem file_info_elem;
-};
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

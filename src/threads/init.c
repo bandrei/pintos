@@ -88,6 +88,8 @@ main (void)
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
+  file_lock = malloc(sizeof(struct lock));
+  lock_init (file_lock);
   console_init ();  
 
   /* Greet user. */

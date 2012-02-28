@@ -6,6 +6,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "lib/kernel/console.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 static bool buffer_read_check (char *buff, size_t n);
@@ -24,7 +25,7 @@ static void sys_write(struct intr_frame*);
 static void sys_seek(struct intr_frame*);
 static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
-static struct lock file_lock;
+
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -127,7 +128,7 @@ _sys_exit (int status, bool msg_print)
 	struct thread *cur = thread_current();
 	bool parent_waiting = false;
 	struct semaphore *parent_sema;
-	enum intr_level old_level = intr_disable();
+	/*enum intr_level old_level = intr_disable();
 	//let the children know that we are dying
 	struct thread *child;
 	struct list_elem *it;
@@ -147,7 +148,24 @@ _sys_exit (int status, bool msg_print)
 		list_remove(&info->info_elem);
 		info->info_elem.next = info->info_elem.prev = NULL;
 		free(info);
-	}/*
+	}
+	/*
+	 * Close all files here while loop and call to file_close
+
+
+	struct file *file;
+	it = list_begin(&cur->files_opened);
+	while(it != list_end(&cur->files_opened))
+	{
+		file = list_entry(it,struct file, file_elem);
+		it = file->file_elem.next;
+		list_remove(&file->file_elem);
+		file->file_elem.prev =file->file_elem.next = NULL;
+		file_close(file);
+	}
+
+
+	/*
 	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
 			it = list_next(it))
 	{
@@ -156,7 +174,7 @@ _sys_exit (int status, bool msg_print)
 		info->info_elem.next = NULL;
 		info->info_elem.prev = NULL;
 		//free(info);
-	}*/
+	}
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -186,7 +204,12 @@ _sys_exit (int status, bool msg_print)
 		}
 	}
 	list_remove(&cur->child_elem);
-	intr_set_level(old_level);
+	if(cur->our_file!=NULL)
+			file_allow_write(cur->our_file);
+	//if(cur->locked_on_file)
+			//lock_release(&file_lock);
+	//printf("Inode count %d ",*cur->our_file->inode->open_cnt);
+	intr_set_level(old_level);*/
 	if(msg_print)
 	{
 				//(char *)cur->name--;
@@ -194,12 +217,13 @@ _sys_exit (int status, bool msg_print)
 	}
 
 
+	//allow writing to file
 	//if the parent is still waiting (i.e. it has already set
 	//its child_wait_tid flag then sema_up it
-	if(parent_waiting)
-	{
-		sema_up(parent_sema);
-	}
+	//if(parent_waiting)
+	//{
+		//sema_up(parent_sema);
+	//}
 
 
 	thread_exit();
@@ -325,9 +349,10 @@ static void sys_create(struct intr_frame *f)
 	char *file_addr = *tmp_esp;
 	tmp_esp++; //get the file size required for creation
 	pointer_check(tmp_esp,sizeof(unsigned));
+	pointer_check(file_addr,0);
 	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
 		f->eax = false; //file creation failed
-	else f->eax = true; //file creation successfull
+	else f->eax = true; //file creation successful
 }
 
 static void sys_remove(struct intr_frame *f)
@@ -338,16 +363,31 @@ static void sys_remove(struct intr_frame *f)
 	pointer_check(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
 	tmp_esp++; //get the file size required for creation
-	pointer_check(tmp_esp,sizeof(unsigned));
-	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
-		f->eax = false; //file creation failed
-	else f->eax = true; //file creation successfull
+	pointer_check(file_addr,0);
+	if(!filesys_remove(file_addr))
+		f->eax = false; //file remove failed
+	else f->eax = true; //file remove successful
 }
 
 static void sys_open(struct intr_frame *f)
 {
 
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(unsigned));
+	char *file_addr = *tmp_esp;
+	tmp_esp++; //get the file size required for creation
+	pointer_check(file_addr,0);
+	struct file *opened = filesys_open(file_addr);
+	if(opened != NULL)
+	{
+		opened->fd=list_size(&thread_current()->files_opened);
+		list_push_back(&thread_current()->files_opened, &opened->file_elem);
+		f->eax = opened->fd;
+	}
+	else
+		f->eax = -1;
+
 }
 
 static void sys_filesize(struct intr_frame *f)
@@ -385,6 +425,8 @@ static void sys_write(struct intr_frame *f)
 	}
 	else
 	{
+		if(*tmp_esp==0)
+			_sys_exit(-1,true);
 		//_sys_exit(-1,true);
 		//case for writing to a file here
 	}

@@ -234,16 +234,16 @@ lock_acquire (struct lock *lock)
   //the same lock before actually blocking
   //the current thread (if it cannot acquire
   //the lock)
-  enum intr_level old_level;
+  /*enum intr_level old_level;
   old_level = intr_disable();	
   if(lock->holder != NULL )
   {
 	  thread_current()->try_lock = lock;
 	  lock_donate(lock);
   }
-  intr_set_level(old_level);
+  intr_set_level(old_level);*/
   sema_down (&lock->semaphore);
-  thread_current()->try_lock = NULL;
+  //thread_current()->try_lock = NULL;
   lock->holder = thread_current ();
 }         
 
@@ -279,14 +279,14 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
 
-  int new_pri;
+ /* int new_pri;
   enum intr_level old_level;
   old_level = intr_disable();
   
   new_pri =lock_donate_restore(lock);
   
   intr_set_level(old_level);
-  lock->holder->priority= new_pri;
+  lock->holder->priority= new_pri;*/
   lock->holder = NULL;
 	
   sema_up (&lock->semaphore);

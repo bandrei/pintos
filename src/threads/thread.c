@@ -181,6 +181,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->parent = NULL;
   initial_thread->status = THREAD_RUNNING;
+  //sema_init(&file_lock,1);
+  //file_lock = malloc(sizeof(struct lock));
+    //lock_init (file_lock);
+
   //sema_init(&initial_thread->ready_to_kill,1); //special case for initial thread
   ready_threads++;
   if (thread_mlfqs) {
@@ -811,7 +815,9 @@ init_thread (struct thread *t, const char *name, int priority)
   }
   
   t->try_lock = NULL;
-  list_init(&t->lock_list);
+  t->our_file = NULL;
+  t->locked_on_file = NULL;
+  list_init(&t->lock_list); //lock_list used for donation
   list_init(&t->children);
   list_init(&t->children_info);
   list_init(&t->files_opened);
