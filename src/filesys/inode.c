@@ -113,7 +113,6 @@ inode_open (block_sector_t sector)
 {
   struct list_elem *e;
   struct inode *inode;
-
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
@@ -121,6 +120,7 @@ inode_open (block_sector_t sector)
       inode = list_entry (e, struct inode, elem);
       if (inode->sector == sector) 
         {
+    	  printf("Inode reopen called");
           inode_reopen (inode);
           return inode; 
         }
@@ -147,7 +147,6 @@ inode_reopen (struct inode *inode)
 {
   if (inode != NULL)
     inode->open_cnt++;
-  printf(" Open_cnt %d , deny_write_cnt %d \n", inode->open_cnt, inode->deny_write_cnt);
   return inode;
 }
 

@@ -204,11 +204,16 @@ _sys_exit (int status, bool msg_print)
 		}
 	}
 	list_remove(&cur->child_elem);
-	if(cur->our_file!=NULL)
-		//printf("denied write %d \n", cur->our_file->deny_write);
-		file_allow_write(cur->our_file);
 	//printf("Inode count %d ",*cur->our_file->inode->open_cnt);
 	intr_set_level(old_level);
+	if(cur->our_file!=NULL)
+		{
+			lock_acquire(&file_lock);
+			file_close(cur->our_file);
+			lock_release(&file_lock);
+			//printf("denied write %d \n", cur->our_file->deny_write);
+			//file_allow_write(cur->our_file);
+		}
 	if(msg_print)
 	{
 				//(char *)cur->name--;
