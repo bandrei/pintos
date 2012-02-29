@@ -374,16 +374,13 @@ static void sys_read(struct intr_frame *f)
 		fi = list_entry(it,struct file, file_elem);
 		if(fi->fd == fd)
 		{
+
+			f->eax = file_read(fi,buff_addr,buff_size);
 			break;
 		}
 	}
-	if(fi != NULL || fd == 0)
-	{
-		if(fd != 0)
-		{
-			f->eax = file_read(fi,buff_addr,buff_size);
-		}
-		else
+
+		if(fd==0)
 		{
 			int i =0;
 			for(i=0; i<buff_size;i++)
@@ -393,7 +390,7 @@ static void sys_read(struct intr_frame *f)
 			}
 			f->eax = buff_size;
 		}
-	}
+
 	lock_release(&file_lock); //release the lock
 	thread_current()->locked_on_file = false;
 
@@ -440,15 +437,14 @@ static void sys_write(struct intr_frame *f)
 					it = list_next(it))
 			{
 				fi = list_entry(it,struct file, file_elem);
-				if(fi->fd == *tmp_esp)
+				if(fi->fd == fd)
 				{
+
+					f->eax = file_write(fi,buff_addr,buff_size);
 					break;
 				}
 			}
-			if(fi != NULL)
-			{
-				f->eax = file_write(fi,buff_addr,buff_size);
-			}
+
 			lock_release(&file_lock);
 			thread_current()->locked_on_file = false;
 		}
@@ -464,7 +460,7 @@ static void sys_seek(struct intr_frame *f)
 	int fd = *tmp_esp;
 	tmp_esp++;
 	pointer_check(tmp_esp,sizeof(unsigned));
-	unsigned int position= *tmp_esp;
+	unsigned position= *tmp_esp;
 	struct file *fi;
 	struct list_elem *it;
 	//acquire file lock and perform operations
@@ -475,15 +471,14 @@ static void sys_seek(struct intr_frame *f)
 			it = list_next(it))
 	{
 		fi = list_entry(it,struct file, file_elem);
-		if(fi->fd == *tmp_esp)
+		if(fi->fd == fd)
 		{
+			file_seek(fi,position);
+			//printf("my position %d __ \n", position);
 				break;
 		}
 	}
-	if(fi!=NULL)
-	{
-		file_seek(fi,position);
-	}
+
 	lock_release(&file_lock); //release the lock
 	thread_current()->locked_on_file = false;
 }
@@ -533,11 +528,11 @@ static void sys_close(struct intr_frame *f)
 		fi = list_entry(it,struct file, file_elem);
 		if(fi->fd == *tmp_esp)
 		{
+			list_remove(&fi->file_elem);
+			file_close(fi);
 				break;
 		}
 	}
-	list_remove(&fi->file_elem);
-	file_close(fi);
 	lock_release(&file_lock); //release the lock
 	thread_current()->locked_on_file = false;
 }

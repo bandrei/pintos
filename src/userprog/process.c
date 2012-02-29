@@ -350,10 +350,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
    // file = filesys_open (file_name);
     t->locked_on_file = true;
     file_deny_write(file);
+    t->our_file = file;
     lock_release(&file_lock);
     t->locked_on_file = false;
   //deny permission to write to our file
-  t->our_file = file;
+
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
