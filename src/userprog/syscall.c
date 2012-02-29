@@ -550,7 +550,34 @@ static void sys_write(struct intr_frame *f)
 static void sys_seek(struct intr_frame *f)
 {
 
-	thread_exit();
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(int));
+	int fd = *tmp_esp;
+	tmp_esp++;
+	pointer_check(tmp_esp,sizeof(unsigned));
+	unsigned int position= *tmp_esp;
+	struct file *fi;
+	struct list_elem *it;
+	//acquire file lock and perform operations
+	lock_acquire(&file_lock);
+	thread_current()->locked_on_file = true;
+	for(it = list_begin(&thread_current()->files_opened);
+			it != list_end(&thread_current()->files_opened);
+			it = list_next(it))
+	{
+		fi = list_entry(it,struct file, file_elem);
+		if(fi->fd == *tmp_esp)
+		{
+				break;
+		}
+	}
+	if(fi!=NULL)
+	{
+		file_seek(fi,position);
+	}
+	lock_release(&file_lock); //release the lock
+	thread_current()->locked_on_file = false;
 }
 
 static void sys_tell(struct intr_frame *f)
