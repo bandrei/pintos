@@ -51,11 +51,8 @@ process_execute (const char *file_name)
   char f_name[16];
   char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
-  //printf("try_lock n %s --------", thread_current()->tid);
-  //sema_down(&file_lock);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
-  //printf("%d in proc_exec", tid);
   if (tid == TID_ERROR)
       palloc_free_page (fn_copy);
   sema_down(&thread_current()->child_start);
@@ -84,9 +81,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  //  thread_current()->locked_on_file = true;
   success = load (f_name, &if_.eip, &if_.esp);
-  //lock_release(&file_lock);
 
   if(success)
   {
@@ -118,7 +113,6 @@ start_process (void *file_name_)
   if_.esp = (char *)if_.esp - 4; //argv[argc]
  
   struct list_elem *it;
- //printf("%d list size ", list_size(&argument_list));
 
   for(it = list_begin(&argument_list); it != list_end(&argument_list); 
 		it= list_next(it))
@@ -144,15 +138,11 @@ start_process (void *file_name_)
   if(!success)
  	  thread_current()->parent->exec_proc_pid = -1;
    if(thread_current()->parent != NULL)
- 	  //rintf("here");
  	  sema_up(&thread_current()->parent->child_start);
 
-   //printf("Before Name %s :",thread_current()->name);
    palloc_free_page (file_name);
-   //printf("Name %s :",thread_current()->name);
 
   if (!success) 
-    //thread_exit ();
     _sys_exit(-1,false);
 
   /* Start the user process by simulating a return from an
@@ -350,9 +340,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  //enum intr_level old_level = intr_disable();
   file = filesys_open (file_name);
-  //intr_set_level(old_level);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -365,14 +353,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     lock_release(&file_lock);
     t->locked_on_file = false;
   //deny permission to write to our file
-  //lock_acquire(&file_lock);
-  //t->locked_on_file = true;
-  //old_level = intr_disable();
   t->our_file = file;
-  //file_deny_write(file);
-  //intr_set_level(old_level);
-  //lock_release(&file_lock);
-  //t->locked_on_file = false;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

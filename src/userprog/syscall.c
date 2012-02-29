@@ -9,9 +9,6 @@
 #include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
-static bool buffer_read_check (char *buff, size_t n);
-static bool buffer_write_check();
-static bool filename_check(char *buff);
 static void sys_halt(struct intr_frame*);
 static void sys_exit(struct intr_frame*);
 static void sys_exec(struct intr_frame*);
@@ -27,33 +24,7 @@ static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
 
 
-/* Reads a byte at user virtual address UADDR.
-UADDR must be below PHYS_BASE.
-Returns the byte value if successful, -1 if a segfault
-occurred. */
-static int
-get_user (const uint8_t *uaddr)
-{
-	int result;
-	asm ("movl $1f, %0; movzbl %1, %0; 1:"
-		: "=&a" (result) : "m" (*uaddr));
-	return result;
-}
-
-
-/* Writes BYTE to user address UDST.
-UDST must be below PHYS_BASE.
-Returns true if successful, false if a segfault occurred. */
-static bool
-put_user (uint8_t *udst, uint8_t byte)
-{
-	int error_code;
-	asm ("movl $1f, %0; movb %b2, %1; 1:"
-		: "=&a" (error_code), "=m" (*udst) : "q" (byte));
-	return error_code != -1;
-}
-
-//check that the whole size of the buffer is in
+//check that the whole size of the buffer (tmp_esp) is in
 //the user space and return true if that is the
 //case
 
@@ -82,46 +53,9 @@ pointer_check(char *tmp_esp, size_t n)
 }
 
 
-static bool
-buffer_read_check (char *buff, size_t n)
-{
-	unsigned int i;
-	for(i = 0; i<n; i++)
-	{
-
-		if(buff >= PHYS_BASE || get_user(buff) == -1)
-			return false;
-		buff++;
-	}
-	return true;
-}
-static bool
-string_read_check(char *buff)
-{
-	do
-	{
-		if(buff >= PHYS_BASE || get_user(buff)== -1)
-			return false;
-		buff++;
-
-	}while(*buff != '\0' && *buff != '\n');
-	//maybe good to check if the file_name is longer
-	//than 0 bytes
-	return true;
-}
-static bool
-unsigned_check(char *buff)
-{
-	int i = 0;
-	for(i= 0;i<sizeof(unsigned);i++)
-	{
-		if(buff>=PHYS_BASE || get_user(buff)==-1)
-			return false;
-		buff++;
-	}
-	return true;
-}
-
+/*
+ * Auxiliary function for exiting/terminating a thread
+ */
 void
 _sys_exit (int status, bool msg_print)
 {
@@ -138,7 +72,7 @@ _sys_exit (int status, bool msg_print)
 		child = list_entry(it,struct thread, child_elem);
 		child->parent = NULL;
 	}
-	//clear the malloced list of child_info
+	//clear the malloc-ed list of child_info
 	struct child_info *info;
 	it = list_begin(&cur->children_info);
 	while(it != list_end(&cur->children_info))
@@ -164,17 +98,6 @@ _sys_exit (int status, bool msg_print)
 		file_close(file);
 	}
 
-
-	/*
-	for(it = list_begin(&cur->children_info); it != list_end(&cur->children_info);
-			it = list_next(it))
-	{
-		info = list_entry(it, struct child_info, info_elem);
-		list_remove(&info->info_elem);
-		info->info_elem.next = NULL;
-		info->info_elem.prev = NULL;
-		//free(info);
-	}*/
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -208,18 +131,12 @@ _sys_exit (int status, bool msg_print)
 	{
 				    //TODO: check if cur->locked_on_file = true
 					//needs to be set here or not (probably not)
-					//lock_acquire(&file_lock);
 					file_close(cur->our_file);
-					//lock_release(&file_lock);
-					//printf("denied write %d \n", cur->our_file->deny_write);
-					//file_allow_write(cur->our_file);
 	}
-	//printf("Inode count %d ",*cur->our_file->inode->open_cnt);
 	intr_set_level(old_level);
 
 	if(msg_print)
 	{
-				//(char *)cur->name--;
 				printf("%s: exit(%d)\n",cur->name,status);
 	}
 	if(cur->locked_on_file)
@@ -252,7 +169,6 @@ syscall_handler (struct intr_frame *f)
 
   //get system call number and call appropriate function
 
-  //printf("handler %d \n",*((int *)f->esp));
   //need to do checks here
 	pointer_check(f->esp, sizeof(int));
 	switch(*(unsigned int *)f->esp)
@@ -317,7 +233,6 @@ syscall_handler (struct intr_frame *f)
 static void sys_halt(struct intr_frame *f)
 {
 	shutdown_power_off();
-	//thread_exit();
 }
 
 static void sys_exit(struct intr_frame *f)
@@ -339,7 +254,6 @@ static void sys_exec(struct intr_frame *f)
     pointer_check(buff_addr,0);
 	tid_t pid = process_execute(buff_addr);
 	f->eax = pid;
-	//thread_exit();
 }
 
 static void sys_wait(struct intr_frame *f)
@@ -528,7 +442,6 @@ static void sys_write(struct intr_frame *f)
 				fi = list_entry(it,struct file, file_elem);
 				if(fi->fd == *tmp_esp)
 				{
-					//f->eax=inode_length(file_get_inode(fi));
 					break;
 				}
 			}
@@ -539,13 +452,7 @@ static void sys_write(struct intr_frame *f)
 			lock_release(&file_lock);
 			thread_current()->locked_on_file = false;
 		}
-		//_sys_exit(-1,true);
-		//case for writing to a file here
 	}
-	//hex_dump(0,f->esp,100,true);
-	//printf("System call : %d", *tmp_esp++);
-	//printf("System fd: %d", *tmp_esp++);
-	//printf ("system call!\n");
 }
 
 static void sys_seek(struct intr_frame *f)
