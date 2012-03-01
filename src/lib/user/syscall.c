@@ -1,6 +1,9 @@
 #include <syscall.h>
 #include "../syscall-nr.h"
 
+#pragma GCC push_options
+#pragma GCC optimize "no-omit-frame-pointer"
+
 /* Invokes syscall NUMBER, passing no arguments, and returns the
    return value as an `int'. */
 #define syscall0(NUMBER)                                        \
@@ -182,3 +185,5 @@ inumber (int fd)
 {
   return syscall1 (SYS_INUMBER, fd);
 }
+
+#pragma GCC pop_options
