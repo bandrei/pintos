@@ -23,7 +23,6 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static struct lock my_lock;
 
 struct arg_elem
 {

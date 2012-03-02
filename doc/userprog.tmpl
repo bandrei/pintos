@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Andrei Bara <ab6610@imperial.ac.uk>
+Rory Allford <rda10@imperial.ac.uk>
+Alina Boghiu <ab---@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
 
@@ -30,19 +30,76 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+////////////////////////////////////////////////////////////////////
+struct arg_elem
+{
+	unsigned int address;
+	struct list_elem elem;
+};
+////////////////////////////////////////////////////////////////////
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+First stage of the argument passing is done in process_execute when the file
+name is being extracted from the whole string and passed on to thread_create.
+
+The second stage takes place in start_process function (which gets executed 
+after the thread has been created). The arguments get extracted from the string
+one argument at a time using strtok_r and then they get added to a list of 
+arguments in the order they are read from the string (i.e. the file name first
+and then the rest). Also this list of arguments will store the information
+about the stack address(as pointed by eip) where the current argument has been
+added. At the same time the arguments are put onto the stack.
+
+The third stage will take care of any padding that might be necessary by 
+rounding down the if_.eip to a value that is multiple of four (see the algorithm
+in the code used to do that) and also of writing the addresses of the previous
+arguments on the stack (i.e. these addresses will be used as pointer addresses).
+Finally add the address of the pointer to the argument pointers (i.e. char **)
+and the argc (which is the size of the list).
+
+By the way page fault is implemented if the stack gets corrupted or overflows
+the thread will be killed (see implementation of kill() in exception.c) and all
+of its resources released. 
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+strtok() uses a global variable to store the the current location/pointer
+when tokenising the string (the global variable is stored somewhere in the user 
+thread). 
+This is a bad idea as in the kernel context this value might be overwritten
+by other threads that call strtok and thus the tokenising process would fail.
+strtok_r() on the other hand uses a local pointer in order to save the progress
+which makes the function safe to use.  
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+One of the advantages of doing the argument passing in the shell is that
+it allows for some more options when passing arguments (e.g. the user can
+get file names as argument easier, by pressing TAB or it can edit the arguments
+in an interactive way) and more user freedom by being able to customize the
+way arguments are read.
+
+Another advantage is that the tokenisation process is done in the shell and thus
+reducing the amount of work that needs to be executed in kernel context (i.e.
+the arguments could be passed in the usual way as an array with argc and argv
+and in process_execute they could get copied off the stack into a temporary page
+and afterwards in start_process they could simply be copied at the top of the
+user space with a simple memcpy command. 
+
+Also probably on of the most important aspects of shells is pipelining which 
+allows for output from some processes to be passed as input to other processes
+(the output can be modified the way the user wants).
+
 
                  SYSTEM CALLS
                  ============
@@ -52,6 +109,88 @@ FirstName LastName <email@domain.example>
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+
+
+/////////////////////////////////////////////////////////////////////////
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    int init_priority;			/* Initial priority when donation starts (i.e. priority to revert to 
+					   when all of the donations have been removed */
+    struct lock *try_lock;		/* Hold the lock the current thread is trying to lock on */
+    struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
+					   from the current thread (used in the donation process)*/
+    struct list_elem allelem;		/* List element for all threads list. */
+    struct thread *parent;
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+    /* User thread variables*/
+    /*
+    struct list children_info_list;
+    struct list_elem child_elem;
+    struct semaphore ready_to_kill;
+    struct semaphore ready_to_die;
+    bool parent_alive;
+    bool parent_waiting;
+    int exit_status;*/
+
+    /* initialised to false, set to true if created by process_execute */
+    bool is_user_proc;
+
+    /* Children information for implementing the wait system call*/
+    struct list children_info;
+    struct list children;
+    struct list_elem child_elem;
+    tid_t child_wait_tid;
+    struct semaphore thread_wait;
+    tid_t exec_proc_pid;
+    struct semaphore child_start;
+
+
+    /* Files queue*/
+    struct file *our_file;
+    struct list files_opened;
+    bool locked_on_file;
+
+    /* BSD */
+    fixed recent_cpu;
+    int nice;
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+
+/////////////////////////////////////////////////////////////////////
+
+struct child_info
+{
+	tid_t child_tid;
+	int exit_status;
+	bool already_exit;
+	struct list_elem info_elem;
+};
+
+
+
+////////////////////////////////////////////////////////////////////
+extern struct lock file_lock;
+
+
+////////////////////////////////////////////////////////////////////
+
+
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
