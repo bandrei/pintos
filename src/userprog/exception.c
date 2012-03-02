@@ -109,9 +109,7 @@ kill (struct intr_frame *f)
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
          kernel. */
-    //  printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
-      //       f->vec_no, intr_name (f->vec_no), f->cs);
-      //thread_exit ();
+
     	_sys_exit(-1,true);
     }
 }
@@ -166,13 +164,6 @@ page_fault (struct intr_frame *f)
  //        write ? "writing" : "reading",
  //         user ? "user" : "kernel");
 
-//  if(!user)
- // {
-// 	f->eip = f->eax;
- // 	f->eax = 0xfffffff;
- // 	printf("fault");
- // }
- // else _sys_exit(-1,true);
   kill(f);
 }
 

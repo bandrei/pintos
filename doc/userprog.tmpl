@@ -37,6 +37,10 @@ struct arg_elem
 	unsigned int address;
 	struct list_elem elem;
 };
+
+This structure will store the address of the arguments that are put
+in a list when executing the whole of the argument passing mechanism
+(primarily used in start_process).
 ////////////////////////////////////////////////////////////////////
 
 ---- ALGORITHMS ----
@@ -127,33 +131,33 @@ struct thread
     struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
 					   from the current thread (used in the donation process)*/
     struct list_elem allelem;		/* List element for all threads list. */
-    struct thread *parent;
+    
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     /* User thread variables*/
-    /*
-    struct list children_info_list;
-    struct list_elem child_elem;
-    struct semaphore ready_to_kill;
-    struct semaphore ready_to_die;
-    bool parent_alive;
-    bool parent_waiting;
-    int exit_status;*/
 
-    /* initialised to false, set to true if created by process_execute */
+
+    /* initialised to false, set to true if created by process_execute 
+	which means that the thread is a user thread*/
     bool is_user_proc;
 
+    struct thread *parent; //the parent of the current thread
+
     /* Children information for implementing the wait system call*/
-    struct list children_info;
-    struct list children;
-    struct list_elem child_elem;
+    
+    struct list children_info; //store a list for post-mortem child info
+				//recovery
+    struct list children;    //keep a list of children in order to update
+			    //them as we die
+    struct list_elem child_elem; //used to store us in the parent's 
+				//child list
     tid_t child_wait_tid;
     struct semaphore thread_wait;
     tid_t exec_proc_pid;
     struct semaphore child_start;
 
 
-    /* Files queue*/
+    /* Files queue used to keep information about all the opened files*/
     struct file *our_file;
     struct list files_opened;
     bool locked_on_file;
@@ -172,6 +176,18 @@ struct thread
   };
 
 
+The modified thread strcture will store information about the children
+(i.e. keeping a list of children and a list of children information such
+as their exist status and if they have already exited).
+
+Also store information about the files that are opened by the current thread,
+if a file lock has been acquired and if the current thread is a user thread
+or not.
+
+Also several semaphores are in place in order to synchronize with the children
+(semaphore child_start -used when starting a child thread for
+recovering the correct thread tid-  and thread_wait).
+
 /////////////////////////////////////////////////////////////////////
 
 struct child_info
@@ -182,19 +198,44 @@ struct child_info
 	struct list_elem info_elem;
 };
 
+Structure meant to keep information about the children if they
+die before the parent process calls wait on them.
 
-
+////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
 extern struct lock file_lock;
 
+synchronization structure for file writing/operations
 
 ////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////
+struct file
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;  			/* Current position. */
+    int fd; 				//file descriptor
+    struct list_elem file_elem;
+    bool deny_write;            /* Has file_deny_write() been called? */
+  };
 
-
+Modified file struct in order to be able to insert it in the files_opened
+list of the thread that has opened the file (also it will keep information
+about the file descriptor that has been allocated to it).
+////////////////////////////////////////////////////////////////////
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+When a new file is opened the file descriptor allocated to it is the length
+of the file list (of the current thread)+2 (as to skip the fds 0 and 1 which
+are reserved for stdout/stdin).
+
+The file descriptors are uniqure per thread (i.e. the same file can be opened
+in another thread and will have another file descriptor).
+
+Whenever doing operations on a file the thread will check that the file has been
+opened (or otherwise if it's stdin/stdout) otherwise the operations will fail.
 
 ---- ALGORITHMS ----
 
@@ -207,6 +248,16 @@ extern struct lock file_lock;
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
+
+
+In the current implementation 0 calls to pagedir_get_page() are done as the
+actual user thread has only 2 pages allocated to it (pagedir_create() will
+only allocate one page for the code and another page for the user thread stack)
+besides the kernel page. Which basically means that if the sys calls reads
+from user space (most likely from the stack as there is no
+support for other segments) 4 KB of data, one might get a page fault if the
+data is not page aligned. As for the case of 2 bytes if the second byte is out
+of the range of the page then a pagefault will be caused. 
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
