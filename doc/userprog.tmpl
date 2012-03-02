@@ -242,6 +242,28 @@ opened (or otherwise if it's stdin/stdout) otherwise the operations will fail.
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
 
+When a syscall is issued to read or write it goes to the syscall handler
+which will check that it can properly dereference the system call number. If
+that is the case then the appropriate call start executing.
+
+In the case of read all the data that is on the stack is being checked
+using POINTER_CHECK() (i.e. the file descriptor, the buffer pointer, 
+the buffer size and the whole buffer itself). If that is successful 
+then if fd is 0 will read the input from the console, otherwise it will traverse
+the list of opened files. In case a file with the correspoding fd is found
+then it read from that file into the buffer and return the number of bytes read
+by putting it into f->eax. Otherwise it will write -1 to f->eax which is the
+equivalent of a failure.
+
+For the case of write the same procedure as above are applied to the pointers.
+If the fd is 1 then it will write to the console. Otherwise it checks the list
+of opened files and if found writes to it. Returns the number of bytes written
+by setting f->eax.
+
+In all of the cases a lock is acquired on file_lock as to avoid concurrent reads
+or writes to the file (i.e. read read combination would not cause harm, but a
+read and a write is undesirable).  
+
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
 >> and the greatest possible number of inspections of the page table
@@ -257,10 +279,43 @@ besides the kernel page. Which basically means that if the sys calls reads
 from user space (most likely from the stack as there is no
 support for other segments) 4 KB of data, one might get a page fault if the
 data is not page aligned. As for the case of 2 bytes if the second byte is out
-of the range of the page then a pagefault will be caused. 
+of the range of the page ,then a pagefault will be caused. 
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+The wait system works as follows:
+
+The thread struct contains a list of children and a list of children_info (used
+to store information from the both dead and alive children; each child will
+create such an element in its parent list, during thread_create()).
+Also there is one semaphore called thread_wait (note: this is different from 
+child_wait which is used only for getting the right child tid when spawning a 
+new process).
+
+During thread_create the child gets added to the parent child list and the
+child information is put in children_info list (the already_exit flag is set
+to false, exit_status to -1 and the child_tid to the tid of the thread
+that is to be created).
+
+When a process calls wait it disables interrupts (to disallow preemption) and
+starts searching the children_info list. If it finds a child thread with the
+corresponding tid then it will retrieve the information and temporarily store
+it. If the child thread has not died yet (by checking the already_exit flag) 
+then put the thread in a wait status (by downing the thread_wait semaphore), 
+otherwise skip this step, remove the child info from the children_info list 
+and return the exit code.
+
+If the semaphore has been downed then when the child thread dies it will
+sema up the parent's thread_wait semaphore (it checks if the parent is actually
+waiting on this child and only then up the semaphore, otherwise it might up it
+for some other child process). Also on dying, a thread will
+notify all of its children that it has died by setting their parent pointer
+to NULL, will clear the children_info list and if a lock has been acquired
+(in this case file_lock, by checking the locked_on_file flag) then release it and
+remove itself from the parent's child list.
+After the parent process has been woken up release the memory by calling
+thread_exit().
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -276,12 +331,45 @@ of the range of the page then a pagefault will be caused.
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+In order to achieve proper page fault handling the struct thread has a flag
+called is_user_proc which is set in start_process (which will basically let
+us know during a page fault in  the kernel segment that this has been caused
+by a user thread; like the situation of a bad pointer being checked in a
+system call handler).
+
+Therefore to make the code more clear we do a basic pointer check to see if
+the addresses are before PHYS_BASE and during the check let the process page
+fault if there is a bad pointer/address. 
+
+We have chosen to modify the file exception.c (pagefault() and kill() in 
+particular) to handle the possible pagefaults by terminating the process that
+caused it.
+
+At this point kill() will call _sys_exit which will deallocate the memory that 
+has been malloced (such as children info and the list of opened files), will 
+check if the thread has acquired the file_lock (and if it is the case release it)
+and then clear the thread's kernel page by calling thread_exit().
+
+As a principle all possible page faults will be provoked before doing any
+significant work in the syscall handlers and _sys_exit called rightaway which
+will take care of releasing or the resources.
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+In order to support this feature we have modified struct thread by adding
+a new field namely (exec_proc_pid) and a new semaphore child_wait. 
+Whenever process_execute is called and after the call to thread_create the 
+child_wait semaphore is downed and wait to be upped by the child. At this point 
+the information stored in exec_proc_pid should be the correct one (note
+that the semaphore might be upped before it is downed but that is not a problem).
+
+The value returned by process_execute will by stored in f->eax in the system
+call handler thus allowing the exec syscall to return the pid of the child proc.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -290,16 +378,65 @@ of the range of the page then a pagefault will be caused.
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+Most of the synchronization happens in process_wait.
+
+To ensure synchronization before C exists we have a semaphore (child_wait)
+which would get downed if the child has not died and then wait to be upped 
+by the child. Also in process_wait the child_wait_tid is set to the tid
+of the required thread so that it can be checked by the child when it dies
+(to see if the semaphore has been downed because the parent is waiting on it
+or not).
+
+If the child has died before the parent getting to wait on it, the parent
+will retrieve the information from its children_info list (note: when 
+traversing/retrieving information from this list interrupts are disabled).
+
+If the parent dies before any of its children then _sys_exit will take care
+of notifying all of its children that it has died, free all the resources and
+kill the thread.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+We have chosen to handle the page faults inside exception.c->kill() 
+by calling _sys_exit as this seemed one of the safest way of doing it and it 
+avoids complications in the code (also in the future, pagefault() and kill() 
+will be the places where swapping should be handled).
+
+Note that the check if the addresses are below PHYS_BASE is done in the system
+call handlers by using POINTER_CHECK(). Chosing no to do so might lead to 
+corrupted kernel memory and the page faults caused afterwards will arrive too 
+late as the whole operating system has already been corrupted
+(i.e. the user process might not be closed properly and even if it is, 
+the harm has been done).
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Our file descriptors are unique per thread. The disadvantage of our implementation
+is given by the fact that threads/processes cannot execute simultaneous operations
+on seperate files (as we only have one global lock rather than a per-file lock).
+
+The advantage is that we are not using a global file list and thus searching
+the list of opened files is much faster (searching in a global list whenever
+releasing locks or opening/reading/closing/writing to a file can prove to be very 
+time consuming).
+Also it simplifies the design a lot as a global file list would require modifying 
+the struct file in such way that not only it has a lock, but also holds a list of
+threads that have opened it). Another problem with global list might arise when 
+adding a new file to that list; at this point we would either have to disable
+interrupt or acquire a lock, but this would be very inefficient as the list
+might be very big as opposed to lists held by threads.
+
+Efficient implementations of global lists can be thought of, like heaps or 
+hash tables.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+It has not been changed.
 
                SURVEY QUESTIONS
                ================

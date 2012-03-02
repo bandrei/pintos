@@ -182,12 +182,8 @@ thread_init (void)
   initial_thread->parent = NULL;
   initial_thread->status = THREAD_RUNNING;
   lock_init(&file_lock);
- // printf("Val %d val", initial_thread->is_user_proc);
-  //sema_init(&file_lock,1);
-  //file_lock = malloc(sizeof(struct lock));
-    //lock_init (file_lock);
 
-  //sema_init(&initial_thread->ready_to_kill,1); //special case for initial thread
+
   ready_threads++;
   if (thread_mlfqs) {
     initial_thread->nice = 0;
@@ -493,8 +489,11 @@ _thread_create (const char *name, int priority,
 
   //add child thread to parent thread's list of children
   t->parent = parent;
-  t->parent->exec_proc_pid = tid;
-  t->child_wait_tid = -1; //this mean no waiting has been set
+  t->parent->exec_proc_pid = tid; //used to store info about
+  	  	  	  	  	  	  	  	  //the tid returned by the
+  	  	  	  	  	  	  	  	  //thread_create() function
+  t->child_wait_tid = -1; //this means this process is not yet
+  	  	  	  	  	  	  //waiting on any child proc
   struct child_info *info = malloc(sizeof(struct child_info));
   info->child_tid = t->tid;
   info->exit_status = -1;

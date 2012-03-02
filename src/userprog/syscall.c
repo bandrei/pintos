@@ -367,21 +367,8 @@ static void sys_read(struct intr_frame *f)
 	//acquire file lock and perform operations
 	lock_acquire(&file_lock);
 	thread_current()->locked_on_file = true;
-	for(it = list_begin(&thread_current()->files_opened);
-			it != list_end(&thread_current()->files_opened);
-			it = list_next(it))
+	if(fd==0)
 	{
-		fi = list_entry(it,struct file, file_elem);
-		if(fi->fd == fd)
-		{
-
-			f->eax = file_read(fi,buff_addr,buff_size);
-			break;
-		}
-	}
-
-		if(fd==0)
-		{
 			int i =0;
 			for(i=0; i<buff_size;i++)
 			{
@@ -389,7 +376,22 @@ static void sys_read(struct intr_frame *f)
 				buff_addr++;
 			}
 			f->eax = buff_size;
+	}
+	else
+	{
+		for(it = list_begin(&thread_current()->files_opened);
+				it != list_end(&thread_current()->files_opened);
+				it = list_next(it))
+		{
+			fi = list_entry(it,struct file, file_elem);
+			if(fi->fd == fd)
+			{
+
+				f->eax = file_read(fi,buff_addr,buff_size);
+				break;
+			}
 		}
+	}
 
 	lock_release(&file_lock); //release the lock
 	thread_current()->locked_on_file = false;
