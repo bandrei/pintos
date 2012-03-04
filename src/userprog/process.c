@@ -24,6 +24,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+/* Structure used in storing the address of the arguments */
 struct arg_elem
 {
 	unsigned int address;
@@ -47,15 +48,21 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
+  /* extract file name from the file_name argument string */
   char f_name[16];
   char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
       palloc_free_page (fn_copy);
+
+  /* wait for the child thread to let us run once the child
+   * has been created
+   */
   sema_down(&thread_current()->child_start);
-   tid = thread_current()->exec_proc_pid;
+  tid = thread_current()->exec_proc_pid;
   return tid;
 }
 
@@ -70,7 +77,8 @@ start_process (void *file_name_)
   //this is a user process since it has been called
   //using process execute
   thread_current()->is_user_proc = true;
-    /* Get file name from file_name "page" */
+
+  /* Get file name from file_name "page" */
   char f_name[16];
   char delim[] = " \\0";
   strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
@@ -85,12 +93,17 @@ start_process (void *file_name_)
   if(success)
   {
   /* Put elements on the stack here */
+  /* Tokeniser part follows */
   char *token;
   char *token_saver;
   unsigned int token_size_full = 0;
+
+  /* create a list to store the pointer addresses to arguments */
   struct list argument_list;
   list_init(&argument_list);
+
   struct arg_elem *tmp_arg;
+
   for (token = strtok_r (file_name, " ", &token_saver); token != NULL;
         token = strtok_r (NULL, " ", &token_saver))
   {
@@ -109,10 +122,11 @@ start_process (void *file_name_)
 
  
   //Put the arguments as pointers
-  if_.esp = (char *)if_.esp - 4; //argv[argc]
+  if_.esp = (char *)if_.esp - 4; //argv[argc] (a NULL char)
  
   struct list_elem *it;
 
+  /* traverse the list and put the arguments' addresses on the stack */
   for(it = list_begin(&argument_list); it != list_end(&argument_list); 
 		it= list_next(it))
   {
@@ -120,6 +134,7 @@ start_process (void *file_name_)
 	if_.esp = (char *)if_.esp - 4; 
 	*(int*)if_.esp = tmp_arg->address;
   }
+
   //put argv
   unsigned int tmp_esp = (int *)if_.esp;
   if_.esp = (char *)if_.esp - 4;
@@ -129,11 +144,13 @@ start_process (void *file_name_)
   if_.esp = (char *)if_.esp-4;
   *(int *)if_.esp = list_size(&argument_list);
 
+  //return to address 0
   if_.esp = (char *)if_.esp - 4;
 
   }
 
   /* If load failed, quit. */ 
+  /* set the parent's exec_proc_pid variable and let the parent run */
   if(!success)
  	  thread_current()->parent->exec_proc_pid = -1;
    if(thread_current()->parent != NULL)
@@ -141,6 +158,7 @@ start_process (void *file_name_)
 
    palloc_free_page (file_name);
 
+  /* if not successful terminate thread */
   if (!success) 
     _sys_exit(-1,false);
 
@@ -168,10 +186,15 @@ process_wait (tid_t child_tid UNUSED)
 {
 
   struct thread *cur = thread_current();
+
+  /* pre set the exit status (e_status) */
   int e_status = -1;
+  bool already_exit = true;
+
   struct child_info *c_i = NULL;
   struct list_elem *info_it;
-  bool already_exit = true;
+
+  /* disable interrupts */
   enum intr_level old_level = intr_disable(); //block preemption
   cur->child_wait_tid = child_tid;
   for(info_it = list_begin(&cur->children_info); info_it!=list_end(&cur->children_info);
@@ -199,6 +222,9 @@ process_wait (tid_t child_tid UNUSED)
 	  intr_set_level(old_level);
   }
 
+  /* remove the element searched for from the list if it has
+   * been found and correctly retrieved
+   */
   if(c_i != NULL)
   {
  	  list_remove(&c_i->info_elem);
@@ -345,14 +371,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-  lock_acquire(&file_lock);
-   // file = filesys_open (file_name);
+    //do sensitive operations on the file
+  	//therefore do not allow other threads
+  	//to write to the file
+    lock_acquire(&file_lock);
+    //current thread is now holding a lock on
+    //the file system
     t->locked_on_file = true;
+    //deny permission to write to our file
     file_deny_write(file);
     t->our_file = file;
     lock_release(&file_lock);
     t->locked_on_file = false;
-  //deny permission to write to our file
+
 
 
   /* Read and verify executable header. */

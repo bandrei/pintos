@@ -29,17 +29,17 @@ static void sys_close(struct intr_frame*);
 //case
 
 static void
-pointer_check(char *tmp_esp, size_t n)
+POINTER_CHECK(char *tmp_esp, size_t n)
 {
 	int i = 0;
-	if(n>0)
+	if(n>0)//case for buffers and other structures
 	{
 		for(i=0;i<n;i++)
 		{
 			if(tmp_esp >= PHYS_BASE)
 				_sys_exit(-1,true);
 		}
-	}
+	}//case for strings
 	else
 	{
 		do
@@ -52,7 +52,17 @@ pointer_check(char *tmp_esp, size_t n)
 	}
 }
 
+static void acquire_file_lock()
+{
+	lock_acquire(&file_lock);
+	thread_current()->locked_on_file = true;
+}
 
+static void release_file_lock()
+{
+	lock_release(&file_lock);
+	thread_current()->locked_on_file= false;
+}
 /*
  * Auxiliary function for exiting/terminating a thread
  */
@@ -141,8 +151,7 @@ _sys_exit (int status, bool msg_print)
 	}
 	if(cur->locked_on_file)
 	{
-			lock_release(&file_lock);
-			cur->locked_on_file = false;
+			release_file_lock();
 	}
 
 	//allow writing to file
@@ -170,7 +179,7 @@ syscall_handler (struct intr_frame *f)
   //get system call number and call appropriate function
 
   //need to do checks here
-	pointer_check(f->esp, sizeof(int));
+	POINTER_CHECK(f->esp, sizeof(int));
 	switch(*(unsigned int *)f->esp)
   {
   case SYS_HALT:
@@ -239,7 +248,7 @@ static void sys_exit(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp, sizeof(int));
+	POINTER_CHECK(tmp_esp, sizeof(int));
 	f->eax = *tmp_esp;
 	_sys_exit(*tmp_esp,true);
 }
@@ -249,9 +258,9 @@ static void sys_exec(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *buff_addr = *tmp_esp;
-    pointer_check(buff_addr,0);
+    POINTER_CHECK(buff_addr,0);
 	tid_t pid = process_execute(buff_addr);
 	f->eax = pid;
 }
@@ -260,7 +269,7 @@ static void sys_wait(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	f->eax=process_wait(*tmp_esp);
 
 }
@@ -270,11 +279,11 @@ static void sys_create(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
 	tmp_esp++; //get the file size required for creation
-	pointer_check(tmp_esp,sizeof(unsigned));
-	pointer_check(file_addr,0);
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(file_addr,0);
 	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
 		f->eax = false; //file creation failed
 	else f->eax = true; //file creation successful
@@ -285,9 +294,9 @@ static void sys_remove(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
-	pointer_check(file_addr,0);
+	POINTER_CHECK(file_addr,0);
 	if(!filesys_remove(file_addr))
 		f->eax = false; //file remove failed
 	else f->eax = true; //file remove successful
@@ -298,14 +307,15 @@ static void sys_open(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
 	tmp_esp++; //get the file size required for creation
-	pointer_check(file_addr,0);
+	POINTER_CHECK(file_addr,0);
 
 
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+
+
+	acquire_file_lock();
 
 	struct file *opened = filesys_open(file_addr);
 	if(opened != NULL)
@@ -316,8 +326,8 @@ static void sys_open(struct intr_frame *f)
 	}
 	else
 		f->eax = -1;
-	lock_release(&file_lock);
-	thread_current()->locked_on_file = false;
+
+	release_file_lock();
 
 }
 
@@ -325,13 +335,12 @@ static void sys_filesize(struct intr_frame *f)
 {
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	struct file *fi;
 	struct list_elem *it;
 	f->eax = -1;
 	//acquire file lock and perform operations
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
 			it = list_next(it))
@@ -343,8 +352,7 @@ static void sys_filesize(struct intr_frame *f)
 			break;
 		}
 	}
-	lock_release(&file_lock); //release the lock
-	thread_current()->locked_on_file = false;
+	release_file_lock();
 }
 
 static void sys_read(struct intr_frame *f)
@@ -353,20 +361,19 @@ static void sys_read(struct intr_frame *f)
 	int *tmp_esp = f->esp;
 	f->eax = -1;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	int fd = *tmp_esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *buff_addr = *tmp_esp;
-	pointer_check(buff_addr,0);
+	POINTER_CHECK(buff_addr,0);
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
     unsigned int buff_size = *tmp_esp;
 	struct file *fi = NULL;
 	struct list_elem *it;
 	//acquire file lock and perform operations
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+	acquire_file_lock();
 	if(fd==0)
 	{
 			int i =0;
@@ -393,8 +400,7 @@ static void sys_read(struct intr_frame *f)
 		}
 	}
 
-	lock_release(&file_lock); //release the lock
-	thread_current()->locked_on_file = false;
+	release_file_lock();
 
 }
 
@@ -405,15 +411,15 @@ static void sys_write(struct intr_frame *f)
 	f->eax = -1;
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-    pointer_check(tmp_esp,sizeof(int));
+    POINTER_CHECK(tmp_esp,sizeof(int));
     int fd = *tmp_esp;
 
     tmp_esp++;
-    pointer_check(tmp_esp,sizeof(unsigned));
+    POINTER_CHECK(tmp_esp,sizeof(unsigned));
     char *buff_addr = *tmp_esp;
-    pointer_check(buff_addr,0);
+    POINTER_CHECK(buff_addr,0);
     tmp_esp++;
-    pointer_check(tmp_esp,sizeof(unsigned));
+    POINTER_CHECK(tmp_esp,sizeof(unsigned));
     //split the buffer here if above 300 bytes probably
     unsigned int buff_size = *tmp_esp;
 
@@ -432,8 +438,7 @@ static void sys_write(struct intr_frame *f)
 		{
 			struct file *fi = NULL;
 			struct list_elem *it;
-			lock_acquire(&file_lock);
-			thread_current()->locked_on_file = true;
+			acquire_file_lock();
 			for(it = list_begin(&thread_current()->files_opened);
 					it != list_end(&thread_current()->files_opened);
 					it = list_next(it))
@@ -447,8 +452,7 @@ static void sys_write(struct intr_frame *f)
 				}
 			}
 
-			lock_release(&file_lock);
-			thread_current()->locked_on_file = false;
+			release_file_lock();
 		}
 	}
 }
@@ -458,16 +462,15 @@ static void sys_seek(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	int fd = *tmp_esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(unsigned));
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	unsigned position= *tmp_esp;
 	struct file *fi;
 	struct list_elem *it;
 	//acquire file lock and perform operations
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
 			it = list_next(it))
@@ -476,13 +479,11 @@ static void sys_seek(struct intr_frame *f)
 		if(fi->fd == fd)
 		{
 			file_seek(fi,position);
-			//printf("my position %d __ \n", position);
 				break;
 		}
 	}
 
-	lock_release(&file_lock); //release the lock
-	thread_current()->locked_on_file = false;
+	release_file_lock();
 }
 
 static void sys_tell(struct intr_frame *f)
@@ -490,13 +491,12 @@ static void sys_tell(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	f->eax = -1;
 	struct file *fi;
 	struct list_elem *it;
 		//acquire file lock and perform operations
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+	acquire_file_lock();
     for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
 			it = list_next(it))
@@ -508,8 +508,7 @@ static void sys_tell(struct intr_frame *f)
 				break;
 		}
 	}
-	lock_release(&file_lock); //release the lock
-	thread_current()->locked_on_file = false;
+	release_file_lock();
 }
 
 static void sys_close(struct intr_frame *f)
@@ -517,12 +516,11 @@ static void sys_close(struct intr_frame *f)
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
-	pointer_check(tmp_esp,sizeof(int));
+	POINTER_CHECK(tmp_esp,sizeof(int));
 	struct file *fi;
 	struct list_elem *it;
 	//acquire file lock and perform operations
-	lock_acquire(&file_lock);
-	thread_current()->locked_on_file = true;
+	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
 			it = list_next(it))
@@ -535,8 +533,7 @@ static void sys_close(struct intr_frame *f)
 				break;
 		}
 	}
-	lock_release(&file_lock); //release the lock
-	thread_current()->locked_on_file = false;
+	release_file_lock();
 }
 
 

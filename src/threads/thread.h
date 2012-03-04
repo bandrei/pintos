@@ -102,35 +102,34 @@ struct thread
     struct list lock_list;		/* Hold a list of locks that another thread is trying to acquire
 					   from the current thread (used in the donation process)*/
     struct list_elem allelem;		/* List element for all threads list. */
-    struct thread *parent;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     /* User thread variables*/
-    /*
-    struct list children_info_list;
-    struct list_elem child_elem;
-    struct semaphore ready_to_kill;
-    struct semaphore ready_to_die;
-    bool parent_alive;
-    bool parent_waiting;
-    int exit_status;*/
 
+    /* initialised to false, set to true if created by process_execute
+   	which means that the thread is a user thread*/
     bool is_user_proc;
 
     /* Children information for implementing the wait system call*/
-    struct list children_info;
-    struct list children;
-    struct list_elem child_elem;
-    tid_t child_wait_tid;
-    struct semaphore thread_wait;
-    tid_t exec_proc_pid;
-    struct semaphore child_start;
+    struct thread *parent; 		/*the parent of the current thread*/
+    struct list children_info; 	/*store a list for post-mortem child info
+								recovery*/
+    struct list children;  		/*keep a list of children in order to update
+    							them as we die */
+    struct list_elem child_elem; /*used to store us in the parent's child list*/
+    tid_t child_wait_tid;		/* the child on which the parent is currently
+    							waiting */
+    struct semaphore thread_wait; /* block thread when waiting on a child. This
+    							 will be the semaphore that needs to be upped
+    							 so that the parent thread can resume running */
+    tid_t exec_proc_pid;		/* created child tid/pid */
+    struct semaphore child_start;/* wait for child thread to be created */
 
 
     /* Files queue*/
-    struct file *our_file;
-    struct list files_opened;
-    bool locked_on_file;
+    struct file *our_file; //our executable file to be closed when we die
+    struct list files_opened;//all of our opened files
+    bool locked_on_file;//used when operating on files
 
     /* BSD */
     fixed recent_cpu;

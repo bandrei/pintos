@@ -146,21 +146,24 @@ struct thread
     /* Children information for implementing the wait system call*/
     
     struct list children_info; //store a list for post-mortem child info
-				//recovery
+							//recovery
     struct list children;    //keep a list of children in order to update
-			    //them as we die
+			    			//them as we die
     struct list_elem child_elem; //used to store us in the parent's 
-				//child list
-    tid_t child_wait_tid;
-    struct semaphore thread_wait;
-    tid_t exec_proc_pid;
-    struct semaphore child_start;
+								//child list
+    tid_t child_wait_tid;  //the child on which a parent is currently 
+    						//waiting
+    struct semaphore thread_wait; /* block thread when waiting on a child. This
+    							 will be the semaphore that needs to be upped
+    							 so that the parent thread can resume running */
+    tid_t exec_proc_pid;		 //created child tid/pid
+    struct semaphore child_start;/* wait for child thread to be created */
 
 
     /* Files queue used to keep information about all the opened files*/
-    struct file *our_file;
-    struct list files_opened;
-    bool locked_on_file;
+    struct file *our_file; //our executable file to be closed when we die
+    struct list files_opened; //all of our opened files
+    bool locked_on_file;	//used when operating on files
 
     /* BSD */
     fixed recent_cpu;
