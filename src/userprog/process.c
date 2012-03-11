@@ -161,7 +161,10 @@ start_process (void *file_name_)
 
   /* if not successful terminate thread */
   if (!success) 
+  {
+	 // printf("did we get here?");
     _sys_exit(-1,false);
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -590,24 +593,27 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
        * */
 
       /* Set this supp_entry we have just created to be EXE */
-      frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena &= EXE;
+      if(thread_current()->supp_table !=NULL )
+    	  printf("trololol ");
+      else
+    	  printf("buuuuu");
 
       /* Now loop until all the necessary page table entries and supp table entries
        * are created
        */
-      struct supp_entry *s_table_entry;
+     /* struct supp_entry *s_table_entry;
       while (read_bytes > 0)
       {
 
     	  //TODO: fill in this area with the creation
     	  //the page fault handler will create zero filled pages anyway
     	  //therefore no need to fill the pages here;
-    	  s_table_entry = malloc(sizeof(struct supp_entry));
+    	  //s_table_entry = malloc(sizeof(struct supp_entry));
 
 
     	  read_bytes -= PGSIZE;
     	  upage += PGSIZE;
-      }
+      }*/
     }
   return true;
 }

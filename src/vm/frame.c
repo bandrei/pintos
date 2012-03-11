@@ -13,7 +13,6 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 	ASSERT(is_kernel_vaddr(kpage));
 	frame_table[vtop(kpage)/PGSIZE].s_entry=supp;
 
-
 	//now have the s_entry point to the frame too
 	frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena &= RAM;
 	frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
