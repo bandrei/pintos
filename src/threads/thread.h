@@ -137,9 +137,9 @@ struct thread
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *pagedir;  /* Page directory. */
 #endif
-
+    struct supp_entry *supp_table;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

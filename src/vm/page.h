@@ -2,6 +2,7 @@
 #define SUPP_TABLE_H
 
 #include <stdint.h>
+#include "threads/thread.h"
 
 /*
  * Enumeration of the flags that can be used
@@ -13,9 +14,10 @@
 
 enum location_flag
 {
-	RAM = 001,
-	SWAP = 002,
-	FILE = 003  //for file mappings
+	RAM = 000,
+	SWAP = 001,
+	FILE = 002,
+	EXE = 004 //this is not mutually exclusive with the others
 };
 
 union supp_entry_ptr

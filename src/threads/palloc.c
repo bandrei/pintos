@@ -113,6 +113,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		{
 			pages = palloc_get_multiple(flags,page_cnt);
 			//add the new pages to the frame table
+
 			unsigned int fr_added = page_cnt;
 
 			//convert void pointer to char pointer to be able to

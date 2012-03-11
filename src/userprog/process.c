@@ -20,6 +20,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -545,7 +546,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
-  while (read_bytes > 0 || zero_bytes > 0) 
+
+  //allocate just one page once and then create the rest of pages
+  //in supp_table, only put them in memory once they are requested
+  //set each of the upage address in the page table to point
+  //to the supp_entry
+  if (read_bytes > 0 || zero_bytes > 0)
     {
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
@@ -577,6 +583,31 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+
+      /* The initial page has been loaded now set the "pointers" in the page table
+       * to point to the supp_entries that we will create.
+       * use pagedir_set_ptr() to accomplish that
+       * */
+
+      /* Set this supp_entry we have just created to be EXE */
+      frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena &= EXE;
+
+      /* Now loop until all the necessary page table entries and supp table entries
+       * are created
+       */
+      struct supp_entry *s_table_entry;
+      while (read_bytes > 0)
+      {
+
+    	  //TODO: fill in this area with the creation
+    	  //the page fault handler will create zero filled pages anyway
+    	  //therefore no need to fill the pages here;
+    	  s_table_entry = malloc(sizeof(struct supp_entry));
+
+
+    	  read_bytes -= PGSIZE;
+    	  upage += PGSIZE;
+      }
     }
   return true;
 }
