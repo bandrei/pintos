@@ -156,28 +156,48 @@ pagedir_clear_page (uint32_t *pd, void *upage)
     }
 }
 
+/**
+ * Storing pointers in the PTE:
+ * 
+ * From the IA-32 Spec:
+ * 
+ * Not Present Page-Directory and Page-Table Entries
+ * When the present flag is clear for a page-table or page-directory entry, the 
+ * operating system or executive may use the rest of the entry for storage of
+ * information such as the location of the page in the disk storage system
+ * 
+ * Hence we have 31 bits to store arbitrary data in.
+ * 
+ * We can therefore store a kernel 32-bit pointer, a Kernel Virtual Address, by
+ * making the observation that since all such addresses are above PHYS_BASE
+ * which is 3GB which is > 2GB the most significant bit will always be 1.
+ * 
+ * ----------------------------------
+ * | Pointer bits [30.....0]      |0|
+ * ----------------------------------
+ * 31                            1 0 - Presence Bit
+ * 
+**/
+
 /* Set the PTE for virtual page VPAGE in PD to the pointer target. */
 void
 pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target) 
 {
-  uint32_t *pte = lookup_page (pd, vpage, true);
-  if (pte != NULL) 
-    {
+    uint32_t *pte = lookup_page (pd, vpage, true);  
+    ASSERT (pte != NULL);
       
-       ASSERT((uint32_t) target & 0x80000000U == 0U);
-       /**
-        * target[31] The MSB must be 1 i.e. target >= 2GB
-        **/
-      
-      *pte = ((uint32_t) target) << 1U;
-      
-      /**
-       * POST: pte[0] the present bit is 0
-       * and pte[31..1] = target[30..0]
-       **/
-      
-       invalidate_pagedir (pd);
-    }
+    ASSERT((((uint32_t) target) & 0x80000000U) == 0U);
+    /**
+    * target[31] The MSB must be 1 i.e. target >= 2GB
+    **/
+
+    *pte = ((uint32_t) target) << 1U;
+    /**
+    * POST: pte[0] the present bit is 0
+    * and pte[31..1] = target[30..0]
+    **/
+
+    invalidate_pagedir (pd);
 }
 
 /* Returns the pointer stored in the PTE for virtual page VPAGE in PD */
@@ -186,13 +206,14 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
 {
   uint32_t *pte = lookup_page (pd, vpage, false);
   void *target = NULL;
+  
   if (pte != NULL)
   {
-      ASSERT(pte & 0x1U == 0U);
+      ASSERT(*pte & PTE_P == 0U);
       /**
        * pte[0] Present bit must be 0
        **/
-      target = (void *) ((pte >> 1U) | 0x80000000U);
+      target = (void *) ((*pte >> 1U) | 0x80000000U);
       /**
        * POST: target[31] is set to 1 and
        * target[30..0] = pte[31..1]
