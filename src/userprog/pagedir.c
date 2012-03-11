@@ -156,6 +156,52 @@ pagedir_clear_page (uint32_t *pd, void *upage)
     }
 }
 
+/* Set the PTE for virtual page VPAGE in PD to the pointer target. */
+void
+pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target) 
+{
+  uint32_t *pte = lookup_page (pd, vpage, true);
+  if (pte != NULL) 
+    {
+      
+       ASSERT((uint32_t) target & 0x80000000U == 0U);
+       /**
+        * target[31] The MSB must be 1 i.e. target >= 2GB
+        **/
+      
+      *pte = ((uint32_t) target) << 1U;
+      
+      /**
+       * POST: pte[0] the present bit is 0
+       * and pte[31..1] = target[30..0]
+       **/
+      
+       invalidate_pagedir (pd);
+    }
+}
+
+/* Returns the pointer stored in the PTE for virtual page VPAGE in PD */
+void *
+pagedir_get_ptr (uint32_t *pd, const void *vpage) 
+{
+  uint32_t *pte = lookup_page (pd, vpage, false);
+  void *target = NULL;
+  if (pte != NULL)
+  {
+      ASSERT(pte & 0x1U == 0U);
+      /**
+       * pte[0] Present bit must be 0
+       **/
+      target = (void *) ((pte >> 1U) | 0x80000000U);
+      /**
+       * POST: target[31] is set to 1 and
+       * target[30..0] = pte[31..1]
+       **/
+  }
+  return target;
+}
+
+
 /* Returns true if the PTE for virtual page VPAGE in PD is dirty,
    that is, if the page has been modified since the PTE was
    installed.
