@@ -593,10 +593,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
        * */
 
       /* Set this supp_entry we have just created to be EXE */
-      if(thread_current()->supp_table !=NULL )
-    	  printf("trololol ");
-      else
-    	  printf("buuuuu");
 
       /* Now loop until all the necessary page table entries and supp table entries
        * are created
