@@ -3,6 +3,7 @@
 #include "vm/frame.h"
 #include "threads/loader.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 struct frame_info *frame_table;
 
@@ -10,8 +11,13 @@ struct frame_info *frame_table;
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 {
 	ASSERT(is_kernel_vaddr(kpage));
-
 	frame_table[vtop(kpage)/PGSIZE].s_entry=supp;
+
+
+	//now have the s_entry point to the frame too
+	frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena &= RAM;
+	frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
+
 }
 
 void frame_clear_map(uint32_t *kpage)

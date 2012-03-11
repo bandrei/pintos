@@ -2,7 +2,6 @@
 #define SUPP_TABLE_H
 
 #include <stdint.h>
-#include "lib/kernel/list.h"
 
 /*
  * Enumeration of the flags that can be used
@@ -11,11 +10,19 @@
  * TODO: extend the flags as necessary (probably more clear
  * to use hex)
  */
-enum supp_flags
+
+enum location_flag
 {
 	RAM = 001,
 	SWAP = 002,
-	DISK = 004  //for file mappings
+	FILE = 003  //for file mappings
+};
+
+union supp_entry_ptr
+{
+	void *ram_table_entry;
+	void *swap_table_entry;
+	void *file_table_entry;
 };
 
 struct supp_entry
@@ -26,18 +33,17 @@ struct supp_entry
 	uint32_t info_arena;
 
 	//pointer to where the page is now (i.e. swap, disk, etc.)
-	void *location;
+	union supp_entry_ptr table_ptr;
 
-	//could put the PTE value in here as well
-	//but it is not necessary if the use of the page table
-	//is correct
 
-	/*use this in conjuction with a list
+	/*use this in conjunction with a list
 	 *of supplemental table entries
 	 */
-	struct list_elem supp_elem;
+	struct supp_entry *next;
 };
 
 void init_supp_entry(struct supp_entry *s_entry);
+uint32_t get_page_location(struct supp_entry *s_entry);
+void set_page_location(struct supp_entry *s_entry, enum location_flag flag);
 
 #endif

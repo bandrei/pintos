@@ -23,6 +23,8 @@
 struct frame_info
 {
 	struct supp_entry *s_entry;
+	//uint32_t *pte;
+	//tid_t pid;
 };
 
 
