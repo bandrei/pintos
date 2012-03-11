@@ -3,6 +3,8 @@
 
 
 #include <stdint.h>
+#include "threads/loader.h"
+#include "vm/page.h"
 
 /*
  * declare the frame table as an arrray of pointers.
@@ -14,22 +16,36 @@
  * be recorded, therefore it is preferable to point this
  * to the supplemental page table which will contain most
  * of the information we need).
+ * Use a structure frame_info just so that we can easily
+ * modify it in the future (e.g. for using aliasing)
  */
 
 struct frame_info
 {
-	uint32_t *address;
-	tid_t  pid;
+	struct supp_entry *s_entry;
 };
-extern
-static struct frame_info frame_table[];
 
-/* add a mapping to the frame table by taking a *kpage KERNEL
- * virtual address and a *upage USER virtual address (i.e.
- * will map the frame indicated by kpage to the address indicated
- * by *upage)
+
+
+/*
+ * TODO: make sure eviction will set the PTE entry to NULL
+ * whenever removing a page from the frame
  */
-void frame_add_map(uint32_t *kpage, uint32_t *upage);
+
+/*
+ * The frame array will only have enough entries
+ * to store the pointers to user pages
+ */
+extern
+struct frame_info *frame_table;
+
+
+
+/* add a pointer to the frame table by taking a *kpage KERNEL
+ * virtual address and a *supp supplemental table entry and
+ * have supp_entry point to it
+ */
+void frame_add_map(uint32_t *kpage, struct supp_entry *supp);
 void frame_clear_map(uint32_t *kpage);
 
 /*
@@ -37,5 +53,7 @@ void frame_clear_map(uint32_t *kpage);
  * kpage
  */
 struct frame_info *
-frame_get_info(uint32_t *kpage);
+frame_get_map(uint32_t *kpage);
+
+
 #endif

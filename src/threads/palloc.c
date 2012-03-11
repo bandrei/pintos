@@ -1,4 +1,5 @@
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -10,6 +11,8 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -93,8 +96,47 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     }
   else 
     {
+	  if(flags & PAL_USER)
+	  {
+
+		bool evicted = false;
+	    //evict no. of pages from frame (should succeed)
+		//if in pal user it should only be one page
+		//as only malloc can allocate continuous pages.
+		//depending on the implementation of eviction
+		//we could have several pages allocated
+		//TODO: call eviction algorithm
+
+
+		//retry the operation after eviction if successful
+		if(evicted)
+		{
+			pages = palloc_get_multiple(flags,page_cnt);
+			//add the new pages to the frame table
+			unsigned int fr_added = page_cnt;
+
+			//convert void pointer to char pointer to be able to
+			//use PGSIZE
+			char *fr_page = pages;
+			struct supp_entry *s_entry;
+
+			//add to list of frames
+			for(fr_added = 0; fr_added<page_cnt;fr_added++)
+			{
+				s_entry = malloc(sizeof(struct supp_entry));
+				init_supp_entry(s_entry);
+
+				frame_add_map((uint32_t *)fr_page,s_entry);
+				fr_page += PGSIZE;
+			}
+		}
+
+
+	  }
+	  else
       if (flags & PAL_ASSERT)
-        PANIC ("palloc_get: out of pages");
+    		  PANIC ("palloc_get: out of pages");
+
     }
 
   return pages;

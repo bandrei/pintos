@@ -22,6 +22,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "vm/frame.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -127,6 +128,8 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+  /* Create the frame table according to the number of user pages */
+  frame_table = malloc(sizeof(struct frame_info) * user_page_limit);
   printf ("Boot complete.\n");
   /* Run actions specified on kernel command line. */
   run_actions (argv);
