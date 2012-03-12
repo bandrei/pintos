@@ -10,6 +10,7 @@
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "vm/page.h"
+#include "vm/mmap.h"
 #include "filesys/file.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -75,7 +76,7 @@ exception_print_stats (void)
 
 /* Handler for an exception (probably) caused by a user process. */
 static void
-kill (struct intr_frame *f) 
+kill (struct intr_frame *f)
 {
   /* This interrupt is one (probably) caused by a user process.
      For example, the process might have tried to access unmapped
@@ -171,29 +172,32 @@ page_fault (struct intr_frame *f)
 
   struct supp_entry *tmp_entry;
   tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+      	  //printf("File offset %x \n\n", thread_current()->our_file->pos);
+      	  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
-  //printf("File offset %x \n\n", thread_current()->our_file->pos);
-  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
   if(tmp_entry != NULL)
-  {
-	  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO | PAL_SUPP);
-	  void *upage = pg_round_down(fault_addr);
-	  //printf(" page rounded down %x \n", upage);
+   {
+      if(tmp_entry->info_arena & EXE)
+      {
+  		uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO | PAL_SUPP);
+  		void *upage = pg_round_down(fault_addr);
 
-	  //printf("Virtual address %x should be %x\n", upage, * (lookup_page (thread_current()->pagedir, newpage, false)));
-	  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+  		pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
 
-	//  printf("Virtual address %x set to %x\n", upage, * (lookup_page (thread_current()->pagedir, upage, false)));
 
-	  off_t pos = tmp_entry->table_ptr.file_table_entry;
-	 // printf("Offses in here %d \n\n",pos);
-	  file_seek(thread_current()->our_file,pos);
-	  file_read(thread_current()->our_file,upage, tmp_entry->read_bytes);
-	 // printf("read ok\n");
-	 // hex_dump(0,upage, 400, true );
-	 // printf("%x %x",tmp_entry->info_arena);
-	 // printf("marked correctly \n");
-  }
-  //kill(f);
+  		struct mmap_entry *exe_map =
+  			(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
+  		off_t pos = exe_map->file_ptr;
+  		file_seek(thread_current()->our_file,pos);
+  		file_read(thread_current()->our_file,upage, exe_map->bytes);
+      }
+      else
+      {
+    	  kill(f);
+      }
+   }
+   else
+    kill(f);
+
 }
 

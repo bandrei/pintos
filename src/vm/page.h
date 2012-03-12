@@ -25,6 +25,7 @@ union supp_entry_ptr
 	void *ram_table_entry;
 	void *swap_table_entry;
 	void *file_table_entry;
+	void *exe_table_entry;
 };
 
 struct supp_entry

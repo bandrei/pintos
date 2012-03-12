@@ -21,6 +21,7 @@
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/mmap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -595,6 +596,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     }*/
 
   struct supp_entry *s_table_entry;
+  struct mmap_entry *exe_table_entry;
         while (read_bytes > 0 || zero_bytes > 0)
         {
       	  size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
@@ -605,9 +607,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  //therefore no need to fill the pages here;
       	  s_table_entry = malloc(sizeof(struct supp_entry));
       	  init_supp_entry(s_table_entry);
-      	  supp_set_flag(s_table_entry, EXE);
-      	  s_table_entry->table_ptr.file_table_entry = file->pos;
-      	  s_table_entry->read_bytes = page_read_bytes;
+      	  s_table_entry->info_arena |= EXE;
+
+      	  exe_table_entry = malloc(sizeof(struct mmap_entry));
+      	  exe_table_entry->file_ptr = file->pos;
+      	  exe_table_entry->bytes = page_read_bytes;
+
+      	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
 
 
       	//  printf("File offset %d \n\n", s_table_entry->table_ptr.file_table_entry);
