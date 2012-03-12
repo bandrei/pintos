@@ -4,9 +4,13 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "userprog/process.h"
 #include "userprog/syscall.h"
-
+#include "userprog/pagedir.h"
+#include "vm/page.h"
+#include "filesys/file.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -159,12 +163,37 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+          user ? "user" : "kernel");*/
 
-  kill(f);
+  struct supp_entry *tmp_entry;
+  tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+
+  //printf("File offset %x \n\n", thread_current()->our_file->pos);
+  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
+  if(tmp_entry != NULL)
+  {
+	  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO | PAL_SUPP);
+	  void *upage = pg_round_down(fault_addr);
+	  //printf(" page rounded down %x \n", upage);
+
+	  //printf("Virtual address %x should be %x\n", upage, * (lookup_page (thread_current()->pagedir, newpage, false)));
+	  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+
+	//  printf("Virtual address %x set to %x\n", upage, * (lookup_page (thread_current()->pagedir, upage, false)));
+
+	  off_t pos = tmp_entry->table_ptr.file_table_entry;
+	 // printf("Offses in here %d \n\n",pos);
+	  file_seek(thread_current()->our_file,pos);
+	  file_read(thread_current()->our_file,upage, tmp_entry->read_bytes);
+	 // printf("read ok\n");
+	 // hex_dump(0,upage, 400, true );
+	 // printf("%x %x",tmp_entry->info_arena);
+	 // printf("marked correctly \n");
+  }
+  //kill(f);
 }
 

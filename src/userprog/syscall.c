@@ -37,7 +37,10 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 		for(i=0;i<n;i++)
 		{
 			if(tmp_esp >= PHYS_BASE)
+			{
+				printf("We are out here \n");
 				_sys_exit(-1,true);
+			}
 		}
 	}//case for strings
 	else
@@ -45,7 +48,10 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 		do
 			{
 			 if(tmp_esp >= PHYS_BASE)
+			 {
+				 printf("we are out \n");
 					_sys_exit(-1,true);
+			 }
 			 tmp_esp++;
 
 			}while(*tmp_esp != '\0');

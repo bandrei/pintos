@@ -53,7 +53,7 @@ pagedir_destroy (uint32_t *pd)
    on CREATE.  If CREATE is true, then a new page table is
    created and a pointer into it is returned.  Otherwise, a null
    pointer is returned. */
-static uint32_t *
+uint32_t *
 lookup_page (uint32_t *pd, const void *vaddr, bool create)
 {
   uint32_t *pt, *pde;
@@ -112,6 +112,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
+
       return true;
     }
   else
@@ -186,7 +187,7 @@ pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target)
     uint32_t *pte = lookup_page (pd, vpage, true);  
     ASSERT (pte != NULL);
       
-    ASSERT((((uint32_t) target) & 0x80000000U) != 0U);
+    ASSERT( !((((uint32_t) target) & 0x80000000U) == 0U));
     /**
     * target[31] The MSB must be 1 i.e. target >= 2GB
     **/
@@ -209,7 +210,7 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
   
   if (pte != NULL)
   {
-      ASSERT(*pte & PTE_P == 0U);
+      ASSERT((*pte & PTE_P) == 0U);
       /**
        * pte[0] Present bit must be 0
        **/

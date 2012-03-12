@@ -8,7 +8,8 @@ enum palloc_flags
   {
     PAL_ASSERT = 001,           /* Panic on failure. */
     PAL_ZERO = 002,             /* Zero page contents. */
-    PAL_USER = 004              /* User page. */
+    PAL_USER = 004,              /* User page. */
+    PAL_SUPP = 006 				/* If set, do NOT create a supp_entry */
   };
 
 void palloc_init (size_t user_page_limit);

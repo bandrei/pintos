@@ -14,10 +14,10 @@
 
 enum supp_flag
 {
-	RAM = 000,
-	SWAP = 001,
-	FILE = 002,
-	EXE = 004 //this is not mutually exclusive with the others
+	RAM = 0U,
+	SWAP = 1U,
+	FILE = 2U,
+	EXE = 3U //this is not mutually exclusive with the others
 };
 
 union supp_entry_ptr
@@ -37,6 +37,8 @@ struct supp_entry
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	union supp_entry_ptr table_ptr;
 
+	//tmp hack until mmap implementation
+	uint32_t read_bytes;
 
 	/*use this in conjunction with a list
 	 *of supplemental table entries

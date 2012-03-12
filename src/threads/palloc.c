@@ -122,24 +122,22 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     		  PANIC ("palloc_get: out of pages");
 
     }
-  if(flags & PAL_USER)
+  if((flags & PAL_USER) && !(flags & PAL_SUPP))
   {
-  unsigned int fr_added = page_cnt;
+	  unsigned int fr_added = page_cnt;
 
-  			//convert void pointer to char pointer to be able to
-  			//use PGSIZE
-  			char *fr_page = pages;
-  			struct supp_entry *s_entry;
-
-  			//add to list of frames
-  			for(fr_added = 0; fr_added<page_cnt;fr_added++)
-  			{
-  				s_entry = malloc(sizeof(struct supp_entry));
-  				init_supp_entry(s_entry);
-
-  				frame_add_map((uint32_t *)fr_page,s_entry);
-  				fr_page += PGSIZE;
-  			}
+  	//convert void pointer to char pointer to be able to
+  	//use PGSIZE
+  	char *fr_page = pages;
+  	struct supp_entry *s_entry;
+	//add to list of frames
+	for(fr_added = 0; fr_added<page_cnt;fr_added++)
+	{
+		s_entry = malloc(sizeof(struct supp_entry));
+		init_supp_entry(s_entry);
+		frame_add_map((uint32_t *)fr_page,s_entry);
+		fr_page += PGSIZE;
+	}
   }
   return pages;
 }
