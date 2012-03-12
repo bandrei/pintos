@@ -12,7 +12,7 @@
  * to use hex)
  */
 
-enum location_flag
+enum supp_flag
 {
 	RAM = 000,
 	SWAP = 001,
@@ -45,7 +45,7 @@ struct supp_entry
 };
 
 void init_supp_entry(struct supp_entry *s_entry);
-uint32_t get_page_location(struct supp_entry *s_entry);
-void set_page_location(struct supp_entry *s_entry, enum location_flag flag);
+uint32_t supp_get_page_location(struct supp_entry *s_entry);
+void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag);
 
 #endif

@@ -593,23 +593,29 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
        * */
 
       /* Set this supp_entry we have just created to be EXE */
+      //supp_set_flag(thread_current()->supp_table, EXE);
 
       /* Now loop until all the necessary page table entries and supp table entries
        * are created
        */
-     /* struct supp_entry *s_table_entry;
-      while (read_bytes > 0)
+      struct supp_entry *s_table_entry;
+      while (read_bytes > 0 || zero_bytes > 0)
       {
+    	  page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+    	  page_zero_bytes = PGSIZE - page_read_bytes;
 
     	  //TODO: fill in this area with the creation
     	  //the page fault handler will create zero filled pages anyway
     	  //therefore no need to fill the pages here;
-    	  //s_table_entry = malloc(sizeof(struct supp_entry));
+    	  s_table_entry = malloc(sizeof(struct supp_entry));
+    	  init_supp_entry(s_table_entry);
 
+    	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);
 
-    	  read_bytes -= PGSIZE;
+    	  read_bytes -= page_read_bytes;
+    	  zero_bytes -= page_zero_bytes;
     	  upage += PGSIZE;
-      }*/
+      }
     }
   return true;
 }

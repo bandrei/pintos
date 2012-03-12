@@ -186,7 +186,7 @@ pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target)
     uint32_t *pte = lookup_page (pd, vpage, true);  
     ASSERT (pte != NULL);
       
-    ASSERT((((uint32_t) target) & 0x80000000U) == 0U);
+    ASSERT((((uint32_t) target) & 0x80000000U) != 0U);
     /**
     * target[31] The MSB must be 1 i.e. target >= 2GB
     **/
