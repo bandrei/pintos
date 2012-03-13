@@ -28,7 +28,7 @@ struct frame_info
 	//tid_t pid;
 };
 
-extern struct lock test_lock;
+extern size_t user_max_pages;
 
 /*
  * TODO: make sure eviction will set the PTE entry to NULL

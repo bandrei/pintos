@@ -6,7 +6,6 @@
 #include "vm/page.h"
 
 struct frame_info *frame_table;
-struct lock test_lock;
 
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 {

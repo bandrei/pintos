@@ -130,17 +130,9 @@ main (void)
 
   /* Create the frame table according to the number of user pages */
 
-   uint8_t *free_start = ptov (1024 * 1024);
-   uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
-   size_t free_pages = (free_end - free_start) / PGSIZE;
-   size_t user_pages = free_pages / 2;
-   size_t kernel_pages;
-   if (user_pages > user_page_limit)
-     user_pages = user_page_limit;
 
-  frame_table = malloc(sizeof(struct frame_info) * user_pages);
-  frame_table_init(frame_table, user_pages);
-  lock_init(&test_lock);
+  frame_table = malloc(sizeof(struct frame_info) * user_max_pages);
+  frame_table_init(frame_table, user_max_pages);
   printf ("Boot complete.\n");
   /* Run actions specified on kernel command line. */
   run_actions (argv);
