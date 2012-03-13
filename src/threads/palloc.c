@@ -179,8 +179,24 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   memset (pages, 0xcc, PGSIZE * page_cnt);
 #endif
 
+  if(page_from_pool(&user_pool,pages))
+  {
+	  char *fr_page = pages;
+	   unsigned int fr_added = page_cnt;
+
+	   	//remove frames of frames
+	   	for(fr_added = 0; fr_added<page_cnt;fr_added++)
+	   	{
+
+
+	   		frame_clear_map((uint32_t *)fr_page);
+	   		fr_page += PGSIZE;
+	   	}
+  }
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+
+
 }
 
 /* Frees the page at PAGE. */

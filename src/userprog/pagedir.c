@@ -113,6 +113,8 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
 
+      //re-synch TLB
+      invalidate_pagedir(pd);
       return true;
     }
   else
