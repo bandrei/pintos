@@ -118,7 +118,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       //if the pte entry is 0 then malloc a new sup entry
       //otherwsie it means that a supp_entry already exists
       //for this entry;
-     /* struct supp_entry *s_entry;
+      struct supp_entry *s_entry;
       if(*pte == 0)
       {
     	  s_entry = malloc(sizeof(struct supp_entry));
@@ -129,7 +129,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     	  s_entry = frame_get_map((uint32_t *)kpage);
       }
 
-      frame_add_map((uint32_t *)kpage,s_entry);*/
+      frame_add_map((uint32_t *)kpage,s_entry);
 
       *pte = pte_create_user (kpage, writable);
 
