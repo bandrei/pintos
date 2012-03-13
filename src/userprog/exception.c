@@ -189,7 +189,7 @@ page_fault (struct intr_frame *f)
   			(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
   		off_t pos = exe_map->file_ptr;
   		file_seek(thread_current()->our_file,pos);
-  		file_read(thread_current()->our_file,upage, exe_map->bytes);
+  		file_read(thread_current()->our_file,upage, exe_map->page_offset);
       }
       else
       {

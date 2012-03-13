@@ -602,7 +602,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       	  exe_table_entry = malloc(sizeof(struct mmap_entry));
       	  exe_table_entry->file_ptr = file->pos;
-      	  exe_table_entry->bytes = page_read_bytes;
+      	  exe_table_entry->page_offset = page_read_bytes;
 
       	  s_table_entry->info_arena |= EXE;
       	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
