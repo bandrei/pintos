@@ -179,7 +179,7 @@ page_fault (struct intr_frame *f)
    {
       if(tmp_entry->info_arena & EXE)
       {
-  		uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO | PAL_SUPP);
+  		uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
   		void *upage = pg_round_down(fault_addr);
 
   		pagedir_set_page(thread_current()->pagedir, upage, newpage, true);

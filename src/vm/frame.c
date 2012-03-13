@@ -6,7 +6,7 @@
 #include "vm/page.h"
 
 struct frame_info *frame_table;
-
+struct lock test_lock;
 
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 {
@@ -15,7 +15,9 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 
 	//now have the s_entry point to the frame too
 	frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena |= RAM;
-	frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
+	supp_set_table_ptr(frame_table[vtop(kpage)/PGSIZE].s_entry, &frame_table[vtop(kpage)/PGSIZE]);
+
+	//frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
 
 }
 
@@ -34,4 +36,16 @@ frame_get_map(uint32_t *kpage)
 	return &frame_table[vtop(kpage)/PGSIZE];
 }
 
+void
+frame_table_init(struct frame_info *f_table, uint32_t count)
+{
+	uint32_t i;
+	for(i = 0; i<count;i++)
+	{
+		ASSERT(f_table != NULL)
 
+		f_table->s_entry = NULL;
+		f_table++;
+	}
+
+}

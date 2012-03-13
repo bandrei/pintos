@@ -38,6 +38,7 @@ struct pool
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
+//static size_t user_pages_max;
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
@@ -122,7 +123,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     		  PANIC ("palloc_get: out of pages");
 
     }
-  if((flags & PAL_USER) && !(flags & PAL_SUPP))
+  /*if((flags & PAL_USER) && !(flags & PAL_SUPP))
   {
 	  unsigned int fr_added = page_cnt;
 
@@ -138,7 +139,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		frame_add_map((uint32_t *)fr_page,s_entry);
 		fr_page += PGSIZE;
 	}
-  }
+  }*/
   return pages;
 }
 
@@ -188,6 +189,13 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 	   	for(fr_added = 0; fr_added<page_cnt;fr_added++)
 	   	{
 
+	   		//frame_get_map(fr_page)->s_entry->table_ptr.ram_table_entry = NULL;
+	   		if(frame_get_map(fr_page)->s_entry!= NULL)
+	   		{
+	   			supp_set_table_ptr(frame_get_map(fr_page)->s_entry, NULL);
+	   			//if(!(frame_get_map(fr_page)->s_entry->info_arena & RAM))
+	   			//printf("Not ram.... %x", frame_get_map(fr_page)->s_entry->info_arena);
+	   		}
 
 	   		frame_clear_map((uint32_t *)fr_page);
 	   		fr_page += PGSIZE;

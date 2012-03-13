@@ -163,7 +163,6 @@ start_process (void *file_name_)
   /* if not successful terminate thread */
   if (!success) 
   {
-	  printf("WHAT THE FUCK...WHY FAIL???");
     _sys_exit(-1,false);
   }
 
@@ -559,18 +558,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   //printf("no_of iterations : \n");
   /*while (read_bytes > 0 || zero_bytes > 0)
     {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-     //    and zero the final PAGE_ZERO_BYTES bytes.
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-   //   /* Get a page of memory.
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
-     // /* Load this page.
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -578,14 +572,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-   //   /* Add the page to the process's address space.
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
 
-      ///* Advance.
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
@@ -607,12 +599,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  //therefore no need to fill the pages here;
       	  s_table_entry = malloc(sizeof(struct supp_entry));
       	  init_supp_entry(s_table_entry);
-      	  s_table_entry->info_arena |= EXE;
 
       	  exe_table_entry = malloc(sizeof(struct mmap_entry));
       	  exe_table_entry->file_ptr = file->pos;
       	  exe_table_entry->bytes = page_read_bytes;
 
+      	  s_table_entry->info_arena |= EXE;
       	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
 
 

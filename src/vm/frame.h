@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "threads/loader.h"
 #include "vm/page.h"
+#include "threads/synch.h"
 
 /*
  * declare the frame table as an arrray of pointers.
@@ -27,7 +28,7 @@ struct frame_info
 	//tid_t pid;
 };
 
-
+extern struct lock test_lock;
 
 /*
  * TODO: make sure eviction will set the PTE entry to NULL
@@ -38,8 +39,7 @@ struct frame_info
  * The frame array will only have enough entries
  * to store the pointers to user pages
  */
-extern
-struct frame_info *frame_table;
+extern struct frame_info *frame_table;
 
 
 
@@ -49,6 +49,7 @@ struct frame_info *frame_table;
  */
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp);
 void frame_clear_map(uint32_t *kpage);
+void frame_table_init (struct frame_info *f_table, uint32_t count);
 
 /*
  * get the information for frame located at kernel virtual address

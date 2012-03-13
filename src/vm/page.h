@@ -50,5 +50,6 @@ struct supp_entry
 void init_supp_entry(struct supp_entry *s_entry);
 uint32_t supp_get_page_location(struct supp_entry *s_entry);
 void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag);
+void supp_set_table_ptr(struct supp_entry *s_entry, void *address);
 
 #endif
