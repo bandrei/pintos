@@ -17,7 +17,8 @@ enum supp_flag
 	RAM = 0U,
 	SWAP = 1U,
 	FILE = 2U,
-	EXE = 3U
+	EXE = 3U,
+	SUPP_ZERO = 4U
 };
 
 union supp_entry_ptr

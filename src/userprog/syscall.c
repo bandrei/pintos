@@ -38,7 +38,6 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 		{
 			if(tmp_esp >= PHYS_BASE)
 			{
-				printf("We are out here \n");
 				_sys_exit(-1,true);
 			}
 		}
@@ -49,7 +48,6 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 			{
 			 if(tmp_esp >= PHYS_BASE)
 			 {
-				 printf("we are out \n");
 					_sys_exit(-1,true);
 			 }
 			 tmp_esp++;

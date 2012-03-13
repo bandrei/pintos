@@ -120,6 +120,9 @@ kill (struct intr_frame *f)
     }
 }
 
+
+
+
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to task 2 may
    also require modifying this code.
@@ -170,34 +173,49 @@ page_fault (struct intr_frame *f)
          write ? "writing" : "reading",
           user ? "user" : "kernel");*/
 
-  struct supp_entry *tmp_entry;
-  tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
-      	  //printf("File offset %x \n\n", thread_current()->our_file->pos);
-      	  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
+  if(fault_addr < PHYS_BASE)
+  {
+	  struct supp_entry *tmp_entry;
+	  tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
+			  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
-  if(tmp_entry != NULL)
-   {
-      if(tmp_entry->info_arena & EXE)
-      {
-  		uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
-  		void *upage = pg_round_down(fault_addr);
+	  if(tmp_entry != NULL)
+	   {
+		  if(tmp_entry->info_arena & EXE)
+		  {
 
-  		pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+			  enum intr_level oldlevel = intr_disable();
+
+			  uint32_t *newpage = palloc_get_page(PAL_USER);
+			  void *upage = pg_round_down(fault_addr);
+			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
 
 
-  		struct mmap_entry *exe_map =
-  			(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
-  		off_t pos = exe_map->file_ptr;
-  		file_seek(thread_current()->our_file,pos);
-  		file_read(thread_current()->our_file,upage, exe_map->page_offset);
-      }
-      else
-      {
-    	  kill(f);
-      }
-   }
-   else
-    kill(f);
+			  intr_set_level(oldlevel);
+
+			  struct mmap_entry *exe_map =
+				(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
+			  off_t pos = exe_map->file_ptr;
+
+			  size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
+
+			  file_seek(thread_current()->our_file,pos);
+			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
+			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
+		  }
+		  else
+		  {
+			  kill(f);
+		  }
+	   }
+	   else
+		kill(f);
+  }
+  else
+  {
+	  kill(f);
+  }
 
 }
 
