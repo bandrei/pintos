@@ -5,6 +5,9 @@
 
 #include "lib/kernel/bitmap.h"
 
+inline swap_index_t swap_free_slot(struct swapfile* swap);
+inline void swap_put(struct swapfile* swap, swap_index_t slot, void * src);
+
 void swap_free(struct swapfile *swap) {
   if (swap != NULL) {
     free(swap->page_map);
@@ -82,19 +85,19 @@ inline void swap_put(struct swapfile* swap, swap_index_t slot, void * src)
       )
      block_write(swap->device,sector,src);
   
-  bitmap_mark(swap->device,slot); 
+  bitmap_mark(swap->page_map,slot); 
 }
 
 inline swap_index_t swap_free_slot(struct swapfile* swap) {
   
   ASSERT(swap != NULL);
   ASSERT(swap -> page_map != NULL);
+  swap_index_t slot = 0;
+  for (; slot < swap->size; slot++)
+  if (!bitmap_test (swap->page_map, slot))
+    return slot;
   
-  for (swap_index_t i = 0; i < swap->size; i++)
-  if (!bitmap_test (swap->page_map, i))
-    return i;
-  
-  // POST: i = swap->size
+  // POST: slot >= swap->size
   
   PANIC("No free swap slots");
   
