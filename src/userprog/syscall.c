@@ -31,13 +31,15 @@ static void sys_close(struct intr_frame*);
 static void
 POINTER_CHECK(char *tmp_esp, size_t n)
 {
-	int i = 0;
+	size_t i = 0;
 	if(n>0)//case for buffers and other structures
 	{
 		for(i=0;i<n;i++)
 		{
 			if(tmp_esp >= PHYS_BASE)
+			{
 				_sys_exit(-1,true);
+			}
 		}
 	}//case for strings
 	else
@@ -45,7 +47,9 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 		do
 			{
 			 if(tmp_esp >= PHYS_BASE)
+			 {
 					_sys_exit(-1,true);
+			 }
 			 tmp_esp++;
 
 			}while(*tmp_esp != '\0');

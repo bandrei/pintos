@@ -1,4 +1,5 @@
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -10,6 +11,8 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -35,6 +38,8 @@ struct pool
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
+size_t user_max_pages;
+//static size_t user_pages_max;
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
@@ -93,10 +98,49 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     }
   else 
     {
-      if (flags & PAL_ASSERT)
-        PANIC ("palloc_get: out of pages");
-    }
+	  if(flags & PAL_USER)
+	  {
 
+		bool evicted = false;
+	    //evict no. of pages from frame (should succeed)
+		//if in pal user it should only be one page
+		//as only malloc can allocate continuous pages.
+		//depending on the implementation of eviction
+		//we could have several pages allocated
+		//TODO: call eviction algorithm
+
+
+		//retry the operation after eviction if successful
+		if(evicted)
+		{
+			pages = palloc_get_multiple(flags,page_cnt);
+			//add the new pages to the frame table
+
+		}
+
+
+	  }
+	  else if (flags & PAL_ASSERT)
+    		  PANIC ("palloc_get: out of pages");
+
+    }
+  /*if((flags & PAL_USER) && !(flags & PAL_SUPP))
+  {
+	  unsigned int fr_added = page_cnt;
+
+  	//convert void pointer to char pointer to be able to
+  	//use PGSIZE
+  	char *fr_page = pages;
+  	struct supp_entry *s_entry;
+	//add to list of frames
+	for(fr_added = 0; fr_added<page_cnt;fr_added++)
+	{
+		s_entry = malloc(sizeof(struct supp_entry));
+		init_supp_entry(s_entry);
+		frame_add_map((uint32_t *)fr_page,s_entry);
+		fr_page += PGSIZE;
+	}
+  }*/
   return pages;
 }
 
@@ -137,8 +181,31 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   memset (pages, 0xcc, PGSIZE * page_cnt);
 #endif
 
+  if(page_from_pool(&user_pool,pages))
+  {
+	  char *fr_page = pages;
+	   unsigned int fr_added = page_cnt;
+
+	   	//remove frames of frames
+	   	for(fr_added = 0; fr_added<page_cnt;fr_added++)
+	   	{
+
+	   		//frame_get_map(fr_page)->s_entry->table_ptr.ram_table_entry = NULL;
+	   		if(frame_get_map(fr_page)->s_entry!= NULL)
+	   		{
+	   			supp_set_table_ptr(frame_get_map(fr_page)->s_entry, NULL);
+	   			//if(!(frame_get_map(fr_page)->s_entry->info_arena & RAM))
+	   			//printf("Not ram.... %x", frame_get_map(fr_page)->s_entry->info_arena);
+	   		}
+
+	   		frame_clear_map((uint32_t *)fr_page);
+	   		fr_page += PGSIZE;
+	   	}
+  }
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+
+
 }
 
 /* Frees the page at PAGE. */
@@ -162,6 +229,8 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
   page_cnt -= bm_pages;
 
   printf ("%zu pages available in %s.\n", page_cnt, name);
+
+  user_max_pages = page_cnt;
 
   /* Initialize the pool. */
   lock_init (&p->lock);

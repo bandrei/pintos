@@ -5,6 +5,9 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -53,7 +56,7 @@ pagedir_destroy (uint32_t *pd)
    on CREATE.  If CREATE is true, then a new page table is
    created and a pointer into it is returned.  Otherwise, a null
    pointer is returned. */
-static uint32_t *
+uint32_t *
 lookup_page (uint32_t *pd, const void *vaddr, bool create)
 {
   uint32_t *pt, *pde;
@@ -111,7 +114,34 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
   if (pte != NULL) 
     {
       ASSERT ((*pte & PTE_P) == 0);
+
+      //if the pte entry is 0 then malloc a new sup entry
+      //otherwsie it means that a supp_entry already exists
+      //for this entry;
+      struct supp_entry *s_entry;
+      if(*pte == 0)
+      {
+    	  s_entry = malloc(sizeof(struct supp_entry));
+    	  init_supp_entry(s_entry);
+      }
+      else
+      {
+    	  s_entry = frame_get_map((uint32_t *)kpage);
+      }
+
+      frame_add_map((uint32_t *)kpage,s_entry);
+
       *pte = pte_create_user (kpage, writable);
+
+      //re-synch TLB
+      invalidate_pagedir(pd);
+
+
+        	//convert void pointer to char pointer to be able to
+        	//use PGSIZE
+      	//add to list of frames
+
+
       return true;
     }
   else
@@ -151,9 +181,18 @@ pagedir_clear_page (uint32_t *pd, void *upage)
   pte = lookup_page (pd, upage, false);
   if (pte != NULL && (*pte & PTE_P) != 0)
     {
+
+
+
       *pte &= ~PTE_P;
+
+
       invalidate_pagedir (pd);
+
+
+
     }
+
 }
 
 /**
@@ -186,7 +225,7 @@ pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target)
     uint32_t *pte = lookup_page (pd, vpage, true);  
     ASSERT (pte != NULL);
       
-    ASSERT((((uint32_t) target) & 0x80000000U) == 0U);
+    ASSERT( !((((uint32_t) target) & 0x80000000U) == 0U));
     /**
     * target[31] The MSB must be 1 i.e. target >= 2GB
     **/
@@ -209,7 +248,7 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
   
   if (pte != NULL)
   {
-      ASSERT(*pte & PTE_P == 0U);
+      ASSERT((*pte & PTE_P) == 0U);
       /**
        * pte[0] Present bit must be 0
        **/

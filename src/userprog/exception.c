@@ -4,9 +4,14 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "userprog/process.h"
 #include "userprog/syscall.h"
-
+#include "userprog/pagedir.h"
+#include "vm/page.h"
+#include "vm/mmap.h"
+#include "filesys/file.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -71,7 +76,7 @@ exception_print_stats (void)
 
 /* Handler for an exception (probably) caused by a user process. */
 static void
-kill (struct intr_frame *f) 
+kill (struct intr_frame *f)
 {
   /* This interrupt is one (probably) caused by a user process.
      For example, the process might have tried to access unmapped
@@ -92,6 +97,7 @@ kill (struct intr_frame *f)
       //        thread_name (), f->vec_no, intr_name (f->vec_no));
       //intr_dump_frame (f);
       //thread_exit ();
+
     	_sys_exit(-1,true);
 
     case SEL_KCSEG:
@@ -113,6 +119,9 @@ kill (struct intr_frame *f)
     	_sys_exit(-1,true);
     }
 }
+
+
+
 
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to task 2 may
@@ -158,12 +167,55 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
- // printf ("Page fault at %p: %s error %s page in %s context.\n",
- //         fault_addr,
- //         not_present ? "not present" : "rights violation",
- //        write ? "writing" : "reading",
- //         user ? "user" : "kernel");
+  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+         write ? "writing" : "reading",
+          user ? "user" : "kernel");*/
 
-  kill(f);
+  if(fault_addr < PHYS_BASE)
+  {
+	  struct supp_entry *tmp_entry;
+	  tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
+			  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
+
+	  if(tmp_entry != NULL)
+	   {
+		  if(tmp_entry->info_arena & EXE)
+		  {
+
+			  enum intr_level oldlevel = intr_disable();
+
+			  uint32_t *newpage = palloc_get_page(PAL_USER);
+			  void *upage = pg_round_down(fault_addr);
+			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+
+
+			  intr_set_level(oldlevel);
+
+			  struct mmap_entry *exe_map =
+				(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
+			  off_t pos = exe_map->file_ptr;
+
+			  size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
+
+			  file_seek(thread_current()->our_file,pos);
+			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
+			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
+		  }
+		  else
+		  {
+			  kill(f);
+		  }
+	   }
+	   else
+		kill(f);
+  }
+  else
+  {
+	  kill(f);
+  }
+
 }
 

@@ -18,4 +18,8 @@ void pagedir_activate (uint32_t *pd);
 void pagedir_set_ptr (uint32_t *pd, const void *vpage, const void *target);
 void *pagedir_get_ptr (uint32_t *pd, const void *vpage);
 
+uint32_t *
+lookup_page (uint32_t *pd, const void *vaddr, bool create);
+
 #endif /* userprog/pagedir.h */
+
