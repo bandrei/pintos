@@ -28,7 +28,7 @@ void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag)
 
 void paging_init()
 {
-  block* swap_disk = block_get_role(BLOCK_SWAP);
+  struct block* swap_disk = block_get_role(BLOCK_SWAP);
   if (swap_disk == NULL)
     PANIC ("No swap disk found");
   
@@ -54,7 +54,7 @@ void paging_evict(uintptr_t kpage)
   
   uintptr_t ktop = vtop(kpage);
   
-  frame_info * kframe = &frame_table[ktop/PGSIZE];
+  struct frame_info * kframe = &frame_table[ktop/PGSIZE];
   
   if (kframe->s_entry == NULL)
     PANIC ("Attempt to evict an empty frame");
@@ -62,11 +62,11 @@ void paging_evict(uintptr_t kpage)
   if (kframe->flags & FRAME_STICKY)
     PANIC ("Attempt to evict a sticky frame");
   
-  if (kframe->s_entry->info_arena | RAM)
-    PANIC ("Frames supp_entry has RAM flag set");
+  if (SUP_GET_STATE(kframe->s_entry->info_arena) != SUP_STATE_RAM)
+    PANIC ("Frames supp_entry does not have RAM flag set");
   
   swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
-  kframe->s_entry->info_arena &= (SWAP | (~0U<<3) );
+  SUP_SET_STATE(kframe->s_entry->info_arena, SUP_STATE_SWAP);
   
   frame_clear_map(ktop);
   

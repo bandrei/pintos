@@ -33,11 +33,11 @@ extern struct swapfile *swap_table;
 
 /**
  * Example:
- * t->info_arena = SUP_SET_STATE(t->info_arena,SUP_STATE_RAM)
+ * SUP_SET_STATE(t->info_arena,SUP_STATE_RAM)
  * if (SUP_GET_STATE(t->info_arena) == SUP_STATE_RAM)
  **/
 
-#define SUP_SET_STATE(VAL,STATE) (VAL & (SUP_STATE_MASK_SET|STATE))
+#define SUP_SET_STATE(VAL,STATE) VAL = (VAL & (SUP_STATE_MASK_SET|STATE))
 
 #define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
 

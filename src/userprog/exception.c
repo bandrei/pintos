@@ -185,6 +185,8 @@ page_fault (struct intr_frame *f)
 		  if(tmp_entry->info_arena & EXE)
 		  {
 
+			  // TODO: use locking
+
 			  enum intr_level oldlevel = intr_disable();
 
 			  uint32_t *newpage = palloc_get_page(PAL_USER);
