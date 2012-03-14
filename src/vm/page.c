@@ -11,7 +11,6 @@ struct swapfile *swap_table;
 void init_supp_entry(struct supp_entry *s_entry)
 {
 	ASSERT(s_entry != NULL);
-	printf("SUPP ENTYR ADDRESS CREATED: %x \n", s_entry);
 	s_entry->info_arena = 0;
 	s_entry->next = NULL;
 	supp_set_table_ptr(s_entry, NULL);
@@ -139,7 +138,7 @@ void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
       s_entry->table_ptr.exe_table_entry = address;
       break;
     default:
-    	printf("SUPP ENTRY TRYING TO ACCESS %x \n\n BAD state %x\n",s_entry, s_entry->info_arena);
+    	//printf("SUPP ENTRY TRYING TO ACCESS %x \n\n BAD state %x\n",s_entry, s_entry->info_arena);
       PANIC("Invalid supp_entry state");
   }
 }

@@ -634,6 +634,8 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
+  //TODO: change this with a lock
+  enum intr_level old_level = intr_disable();
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -645,6 +647,7 @@ setup_stack (void **esp)
         palloc_free_page (kpage);
       }
     }
+  intr_set_level(old_level);
   return success;
 }
 
