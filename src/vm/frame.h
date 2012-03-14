@@ -21,9 +21,12 @@
  * modify it in the future (e.g. for using aliasing)
  */
 
+#define FRAME_STICKY 1
+
 struct frame_info
 {
 	struct supp_entry *s_entry;
+    uint32_t flags;
 	//uint32_t *pte;
 	//tid_t pid;
 };
@@ -50,6 +53,9 @@ extern struct frame_info *frame_table;
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp);
 void frame_clear_map(uint32_t *kpage);
 void frame_table_init (struct frame_info *f_table, uint32_t count);
+uint32_t frame_get_flags(uintptr_t *kpage);
+void frame_set_flags(uintptr_t *kpage, uint32_t nflags);
+
 
 /*
  * get the information for frame located at kernel virtual address

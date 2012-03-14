@@ -11,6 +11,7 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
 {
 	ASSERT(is_kernel_vaddr(kpage));
 	frame_table[vtop(kpage)/PGSIZE].s_entry=supp;
+    frame_table[vtop(kpage)/PGSIZE].flags=0;
 
 	//now have the s_entry point to the frame too
 	frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena |= RAM;
@@ -24,7 +25,9 @@ void frame_clear_map(uint32_t *kpage)
 {
 	ASSERT(is_kernel_vaddr(kpage));
 	/* there is nothing in the frame so have it point to NULL */
+    // TODO: does vtop(kpage)/PGSIZE == kpage/PGSIZE ?
 	frame_table[vtop(kpage)/PGSIZE].s_entry=NULL;
+    frame_table[vtop(kpage)/PGSIZE].flags=0;
 }
 
 struct frame_info *
@@ -35,6 +38,18 @@ frame_get_map(uint32_t *kpage)
 	return &frame_table[vtop(kpage)/PGSIZE];
 }
 
+uint32_t frame_get_flags(uintptr_t *kpage)
+{
+    ASSERT(is_kernel_vaddr(kpage));
+    return frame_table[vtop(kpage)/PGSIZE].flags;
+}
+
+void frame_set_flags(uintptr_t *kpage, uint32_t nflags)
+{
+    ASSERT(is_kernel_vaddr(kpage));
+    frame_table[vtop(kpage)/PGSIZE].flags = nflags;
+}
+
 void
 frame_table_init(struct frame_info *f_table, uint32_t count)
 {
@@ -42,8 +57,9 @@ frame_table_init(struct frame_info *f_table, uint32_t count)
 	for(i = 0; i<count;i++)
 	{
 		ASSERT(f_table != NULL)
-
+        // TODO: Use memset, is faster
 		f_table->s_entry = NULL;
+        f_table->flags = 0;
 		f_table++;
 	}
 

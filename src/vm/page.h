@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include "threads/thread.h"
+#include "vm/swap.h"
+
+extern struct swapfile *swap_table;
 
 /*
  * Enumeration of the flags that can be used
@@ -12,6 +15,35 @@
  * to use hex)
  */
 
+/**
+ * info_arena layout
+ * 
+ * MSB |                ZERO[1bit]|STATE [3bits]| LSB
+ **/
+
+#define SUP_STATE_MASK_GET (1U<<3)
+#define SUP_STATE_MASK_SET ((~0U)<<3)
+
+#define SUP_STATE_RAM 0U
+#define SUP_STATE_SWAP 1U
+#define SUP_STATE_FILE 2U
+#define SUP_STATE_EXE 3U
+
+#define SUP_ZERO (1U<<4)
+
+/**
+ * Example:
+ * t->info_arena = SUP_SET_STATE(t->info_arena,SUP_STATE_RAM)
+ * if (SUP_GET_STATE(t->info_arena) == SUP_STATE_RAM)
+ **/
+
+#define SUP_SET_STATE(VAL,STATE) (VAL & (SUP_STATE_MASK_SET|STATE))
+
+#define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
+
+
+
+/*
 enum supp_flag
 {
 	RAM = 0U,
@@ -20,6 +52,7 @@ enum supp_flag
 	EXE = 3U,
 	SUPP_ZERO = 4U
 };
+*/
 
 union supp_entry_ptr
 {
