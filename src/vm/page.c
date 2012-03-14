@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include "vm/swap.h"
 #include "vm/frame.h"
+#include "userprog/pagedir.h"
+
+uintptr_t paging_eviction(void);
 
 struct swapfile *swap_table;
 
@@ -15,18 +18,19 @@ void init_supp_entry(struct supp_entry *s_entry)
 	s_entry->next = thread_current()->supp_table;
 	thread_current()->supp_table = s_entry;
 }
-
+/*
 uint32_t supp_get_page_location(struct supp_entry *s_entry)
 {
 	return s_entry->info_arena & 0x00000003U;
 }
-
+*/
+/*
 void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag)
 {
 	s_entry->info_arena |= flag;
-}
+}*/
 
-void paging_init()
+void swap_init()
 {
   struct block* swap_disk = block_get_role(BLOCK_SWAP);
   if (swap_disk == NULL)
@@ -41,19 +45,24 @@ uintptr_t paging_get_free_frame()
   uint32_t slot = 0;
   for (; slot < user_max_pages; slot++ )
   {
-    if (frame_table[slot] == NULL)
+    if (frame_table[slot].s_entry == NULL)
       return (slot * PGSIZE);
   }
   // POST: no free frames
   return paging_eviction();
 }
 
-void paging_evict(uintptr_t kpage)
+/**
+ * Evict a specific frame
+ **/
+void paging_evict(uintptr_t kpagev)
 {
+  const void * kpage = (const void *) kpagev;
   ASSERT(is_kernel_vaddr(kpage));
   
   uintptr_t ktop = vtop(kpage);
   
+  // Look up in the frame table:
   struct frame_info * kframe = &frame_table[ktop/PGSIZE];
   
   if (kframe->s_entry == NULL)
@@ -62,54 +71,72 @@ void paging_evict(uintptr_t kpage)
   if (kframe->flags & FRAME_STICKY)
     PANIC ("Attempt to evict a sticky frame");
   
-  if (SUP_GET_STATE(kframe->s_entry->info_arena) != SUP_STATE_RAM)
+  // Find its supp_entry:
+  struct supp_entry * ksup = kframe->s_entry;
+  
+  if (SUP_GET_STATE(ksup->info_arena) != SUP_STATE_RAM)
     PANIC ("Frames supp_entry does not have RAM flag set");
   
+  // TODO: better locking here
+  
+  // Swap out the frame:
   swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
-  SUP_SET_STATE(kframe->s_entry->info_arena, SUP_STATE_SWAP);
   
-  frame_clear_map(ktop);
+  // Update the supp_entry:
+  SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
   
+  pagedir_set_ptr(kframe->pd, (void *) ktop, ksup);
   
-  
+  frame_clear_map((uint32_t *) ktop);
   
 }
 
+/**
+ * Do eviction and return the KV address of a free frame
+ **/
 uintptr_t paging_eviction()
 {
   ASSERT(frame_table != NULL);
+  
+  /**
+   * Currently we evict everything!!
+   **/
+  
   uint32_t slot = 0;
   uint32_t free_slot = user_max_pages;
   for (; slot < user_max_pages; slot++ )
   {
     
-    if (frame_table[slot].flags & FRAME_STICKY == 0 )
+    if ((frame_table[slot].s_entry != NULL) && 
+      ((frame_table[slot].flags & FRAME_STICKY) == 0 ))
     {
-      
+      free_slot = slot;
+      paging_evict(slot*PGSIZE);
     }
-    if (frame_table[slot] == NULL)
-      return (slot * PGSIZE);
   }
   
+  if (free_slot < user_max_pages)
+    return free_slot*PGSIZE;
+  else
+    PANIC ("Eviction couldn't evict any frames");
 }
 
 void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
 {
-	if(s_entry->info_arena & RAM)
-	{
-		s_entry->table_ptr.ram_table_entry = address;
-	}
-	else if(s_entry->info_arena & SWAP)
-	{
-		s_entry->table_ptr.swap_table_entry = address;
-
-	}
-	else if(s_entry->info_arena & FILE)
-	{
-		s_entry->table_ptr.file_table_entry = address;
-	}
-	else if(s_entry->info_arena & EXE)
-	{
-		s_entry->table_ptr.exe_table_entry = address;
-	}
+  switch(SUP_GET_STATE(s_entry->info_arena)) {
+    case SUP_STATE_RAM:
+      s_entry->table_ptr.ram_table_entry = address;
+      break;
+    case SUP_STATE_SWAP:
+      s_entry->table_ptr.swap_table_entry = address;
+      break;
+    case SUP_STATE_FILE:
+      s_entry->table_ptr.file_table_entry = address;
+      break;
+    case SUP_STATE_EXE:
+      s_entry->table_ptr.exe_table_entry = address;
+      break;
+    default:
+      PANIC("Invalid supp_entry state");
+  }
 }

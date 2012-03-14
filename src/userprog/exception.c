@@ -176,13 +176,13 @@ page_fault (struct intr_frame *f)
   if(fault_addr < PHYS_BASE)
   {
 	  struct supp_entry *tmp_entry;
-	  tmp_entry = (struct supp_entry *)pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
 			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
 			  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
 	  if(tmp_entry != NULL)
 	   {
-		  if(tmp_entry->info_arena & EXE)
+		  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_EXE)
 		  {
 
 			  // TODO: use locking

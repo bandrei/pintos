@@ -22,6 +22,7 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h"
 #include "vm/mmap.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -53,7 +54,7 @@ process_execute (const char *file_name)
   /* extract file name from the file_name argument string */
   char f_name[16];
   char delim[] = " \\0";
-  strlcpy(f_name,file_name, strcspn(file_name,&delim)+1);
+  strlcpy(f_name,file_name, strcspn(file_name,(const char *) &delim)+1);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
@@ -603,8 +604,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  exe_table_entry = malloc(sizeof(struct mmap_entry));
       	  exe_table_entry->file_ptr = file->pos;
       	  exe_table_entry->page_offset = page_read_bytes;
-
-      	  s_table_entry->info_arena |= EXE;
+          
+          SUP_SET_STATE(s_table_entry->info_arena,SUP_STATE_EXE);
       	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
 
 

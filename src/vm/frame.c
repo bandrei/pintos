@@ -7,14 +7,16 @@
 
 struct frame_info *frame_table;
 
-void frame_add_map(uint32_t *kpage, struct supp_entry *supp)
+void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir)
 {
 	ASSERT(is_kernel_vaddr(kpage));
-	frame_table[vtop(kpage)/PGSIZE].s_entry=supp;
-    frame_table[vtop(kpage)/PGSIZE].flags=0;
+    struct frame_info * kframe = &frame_table[vtop(kpage)/PGSIZE];
+	kframe -> s_entry=supp;
+    kframe -> flags=0;
+    kframe -> pd = pagedir;
 
 	//now have the s_entry point to the frame too
-	frame_table[vtop(kpage)/PGSIZE].s_entry->info_arena |= RAM;
+    SUP_SET_STATE(kframe -> s_entry->info_arena, SUP_STATE_RAM);
 	supp_set_table_ptr(frame_table[vtop(kpage)/PGSIZE].s_entry, &frame_table[vtop(kpage)/PGSIZE]);
 
 	//frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
