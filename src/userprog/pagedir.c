@@ -121,7 +121,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       struct supp_entry *s_entry;
       if(*pte == 0)
       {
-    	  s_entry = malloc(sizeof(struct supp_entry));
+    	  s_entry = malloc(sizeof(*s_entry));
     	  init_supp_entry(s_entry);
       }
       else

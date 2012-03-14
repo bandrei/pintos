@@ -167,26 +167,27 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
          write ? "writing" : "reading",
-          user ? "user" : "kernel");*/
+          user ? "user" : "kernel");
 
   if(fault_addr < PHYS_BASE)
   {
 	  struct supp_entry *tmp_entry;
 	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
 			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
-			  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
+	  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
 	  if(tmp_entry != NULL)
 	   {
+		  printf("arena %x \n", tmp_entry->info_arena);
 		  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_EXE)
 		  {
 
 			  // TODO: use locking
-
+			  printf("SUP_STATE_EXE is set \n");
 			  enum intr_level oldlevel = intr_disable();
 
 			  uint32_t *newpage = palloc_get_page(PAL_USER);

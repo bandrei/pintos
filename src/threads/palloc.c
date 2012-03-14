@@ -185,14 +185,15 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   {
 	  char *fr_page = pages;
 	   unsigned int fr_added = page_cnt;
-
+	   //debug_backtrace_all();
 	   	//remove frames of frames
-	   	for(fr_added = 0; fr_added<page_cnt;fr_added++)
+	   	/*for(fr_added = 0; fr_added<page_cnt;fr_added++)
 	   	{
 
 	   		//frame_get_map(fr_page)->s_entry->table_ptr.ram_table_entry = NULL;
 	   		if(frame_get_map(fr_page)->s_entry!= NULL)
 	   		{
+	   			printf("we are being called here and we fail\n");
 	   			supp_set_table_ptr(frame_get_map(fr_page)->s_entry, NULL);
 	   			//if(!(frame_get_map(fr_page)->s_entry->info_arena & RAM))
 	   			//printf("Not ram.... %x", frame_get_map(fr_page)->s_entry->info_arena);
@@ -200,7 +201,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
 	   		frame_clear_map((uint32_t *)fr_page);
 	   		fr_page += PGSIZE;
-	   	}
+	   	}*/
   }
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);

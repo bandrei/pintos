@@ -128,6 +128,7 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+  swap_init();
   /* Create the frame table according to the number of user pages */
 
 
