@@ -598,20 +598,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  //TODO: fill in this area with the creation
       	  //the page fault handler will create zero filled pages anyway
       	  //therefore no need to fill the pages here;
-      	  s_table_entry = malloc(sizeof(struct supp_entry));
+      	  s_table_entry = malloc(sizeof(*s_table_entry));
       	  init_supp_entry(s_table_entry);
 
-      	  exe_table_entry = malloc(sizeof(struct mmap_entry));
+      	  exe_table_entry = malloc(sizeof(*exe_table_entry));
       	  exe_table_entry->file_ptr = file->pos;
       	  exe_table_entry->page_offset = page_read_bytes;
           
           SUP_SET_STATE(s_table_entry->info_arena,SUP_STATE_EXE);
+          //printf("info_arena: %x \n", s_table_entry->info_arena);
       	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
 
 
       	//  printf("File offset %d \n\n", s_table_entry->table_ptr.file_table_entry);
       	 // printf("upage: %x \n", upage);
-      	 // printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
+      	  //printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
 
 
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);
@@ -633,6 +634,8 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
+  //TODO: change this with a lock
+ lock_acquire(&frame_lock);
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -640,8 +643,11 @@ setup_stack (void **esp)
       if (success)
         *esp = PHYS_BASE;
       else
+      {
         palloc_free_page (kpage);
+      }
     }
+  lock_release(&frame_lock);
   return success;
 }
 

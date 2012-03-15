@@ -21,8 +21,9 @@ extern struct swapfile *swap_table;
  * MSB |                ZERO[1bit]|STATE [3bits]| LSB
  **/
 
-#define SUP_STATE_MASK_GET (1U<<3)
+
 #define SUP_STATE_MASK_SET ((~0U)<<3)
+#define SUP_STATE_MASK_GET (~SUP_STATE_MASK_SET)
 
 #define SUP_STATE_RAM 0U
 #define SUP_STATE_SWAP 1U
@@ -37,7 +38,7 @@ extern struct swapfile *swap_table;
  * if (SUP_GET_STATE(t->info_arena) == SUP_STATE_RAM)
  **/
 
-#define SUP_SET_STATE(VAL,STATE) VAL = (VAL & (SUP_STATE_MASK_SET|STATE))
+#define SUP_SET_STATE(VAL,STATE) VAL = ((VAL & SUP_STATE_MASK_SET) | (STATE & SUP_STATE_MASK_GET))
 
 #define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
 
@@ -85,6 +86,7 @@ void init_supp_entry(struct supp_entry *s_entry);
 //uint32_t supp_get_page_location(struct supp_entry *s_entry);
 //void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag);
 void supp_set_table_ptr(struct supp_entry *s_entry, void *address);
+void supp_clear_table_ptr(struct supp_entry *s_entry);
 
 void swap_init(void);
 uintptr_t paging_get_free_frame(void);

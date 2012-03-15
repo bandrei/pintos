@@ -3,6 +3,8 @@
 #include "vm/swap.h"
 #include "vm/frame.h"
 #include "userprog/pagedir.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
 
 uintptr_t paging_eviction(void);
 
@@ -137,6 +139,56 @@ void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
       s_entry->table_ptr.exe_table_entry = address;
       break;
     default:
+    	//printf("SUPP ENTRY TRYING TO ACCESS %x \n\n BAD state %x\n",s_entry, s_entry->info_arena);
       PANIC("Invalid supp_entry state");
+      break;
   }
 }
+
+void supp_clear_table_ptr(struct supp_entry *s_entry)
+{
+	//all pointers should be not NULL at this point
+	  switch(SUP_GET_STATE(s_entry->info_arena))
+	  {
+	    case SUP_STATE_RAM:
+	    {
+	      //no need to free anything at this point
+	    	//pagedir destroy will take care of it
+	    	//TODO: check if it's better to let pagedir destroy
+	    	//do the job, or do it ourselves
+
+	      //TODO:for now, let the pagedir do it and if we decide
+	    	//to trade off space then re-enable the code here and
+	    	//disable the one in pagedir_destroy
+#ifdef FRAME_WITH_ADDR
+	      struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
+	      palloc_free_page(f_info->kpage_addr);
+#endif
+	      s_entry->table_ptr.ram_table_entry=NULL;
+	      break;
+	    }
+	    case SUP_STATE_SWAP:
+	    {
+
+	      free(s_entry->table_ptr.swap_table_entry);
+	      s_entry->table_ptr.swap_table_entry = NULL;
+	      break;
+	    }
+	    case SUP_STATE_FILE:
+	    {
+	      free(s_entry->table_ptr.file_table_entry);
+	      s_entry->table_ptr.file_table_entry = NULL;
+	      break;
+	    }
+	    case SUP_STATE_EXE:
+	    {
+	     // free(s_entry->table_ptr.exe_table_entry);
+	      s_entry->table_ptr.exe_table_entry = NULL;
+	      break;
+	    }
+	    default:
+	      PANIC("Invalid supp_entry state");
+	      break;
+	  }
+}
+
