@@ -6,7 +6,7 @@
 
 uintptr_t paging_eviction(void);
 
-struct swapfile *swap_table;
+struct swapfile *swap_table = NULL;
 
 void init_supp_entry(struct supp_entry *s_entry)
 {
