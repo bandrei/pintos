@@ -162,7 +162,9 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    	//disable the one in pagedir_destroy
 #ifdef FRAME_WITH_ADDR
 	      struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
+	      lock_acquire(&frame_lock);
 	      palloc_free_page(f_info->kpage_addr);
+	      lock_release(&frame_lock);
 #endif
 	      s_entry->table_ptr.ram_table_entry=NULL;
 	      break;
@@ -170,21 +172,30 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    case SUP_STATE_SWAP:
 	    {
 
+	      lock_acquire(&frame_lock);
 	      free(s_entry->table_ptr.swap_table_entry);
+	      lock_release(&frame_lock);
 	      s_entry->table_ptr.swap_table_entry = NULL;
 	      break;
 	    }
 	    case SUP_STATE_FILE:
 	    {
+
+	      lock_acquire(&frame_lock);
 	      free(s_entry->table_ptr.file_table_entry);
+	      lock_release(&frame_lock);
 	      s_entry->table_ptr.file_table_entry = NULL;
 	      break;
+
 	    }
 	    case SUP_STATE_EXE:
 	    {
-	     // free(s_entry->table_ptr.exe_table_entry);
+	      lock_acquire(&frame_lock);
+	      free(s_entry->table_ptr.exe_table_entry);
+	      lock_release(&frame_lock);
 	      s_entry->table_ptr.exe_table_entry = NULL;
 	      break;
+
 	    }
 	    default:
 	      PANIC("Invalid supp_entry state");

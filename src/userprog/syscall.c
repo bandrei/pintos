@@ -173,18 +173,19 @@ _sys_exit (int status, bool msg_print)
 	//deallocate all our page table information (i.e. supp_entry,
 	//file_entry, etc).
 
-	lock_acquire(&frame_lock);
 	struct supp_entry *supp_table = cur->supp_table;
 	struct supp_entry *supp_prev;
 	while(supp_table != NULL)
 	{
 					//printf("call no: %d \n",call);
+
 		supp_clear_table_ptr(supp_table);
 		supp_prev = supp_table;
 		supp_table = supp_table->next;
+		lock_acquire(&frame_lock);
 		free(supp_prev);
+		lock_release(&frame_lock);
 	}
-	lock_release(&frame_lock);
 	thread_exit();
 }
 

@@ -49,13 +49,13 @@ pagedir_destroy (uint32_t *pd)
         //and speed of iterating through all of the
         //pte's using locks
 #ifndef FRAME_WITH_ADDR
+        lock_acquire(&frame_lock);
         for (pte = pt; pte < pt + PGSIZE / sizeof *pte; pte++)
           if (*pte & PTE_P) 
           {
-
             palloc_free_page (pte_get_page (*pte));
           }
-
+        lock_release(&frame_lock);
 #endif
         palloc_free_page (pt);
       }

@@ -23,7 +23,7 @@
 
 #define FRAME_STICKY 1
 #define FRAME_INDEX(VAL) ((vtop(VAL)/PGSIZE)-(init_ram_pages-user_max_pages))
-//#define FRAME_WITH_ADDR
+#define FRAME_WITH_ADDR
 
 extern size_t user_max_pages;
 extern size_t kernel_max_pages;
