@@ -39,6 +39,7 @@ struct pool
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
 size_t user_max_pages;
+size_t kernel_max_pages;
 //static size_t user_pages_max;
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
@@ -233,7 +234,10 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
 
   printf ("%zu pages available in %s.\n", page_cnt, name);
 
-  user_max_pages = page_cnt;
+  if(p==&user_pool)
+  {
+	  user_max_pages = page_cnt;
+  }
 
   /* Initialize the pool. */
   lock_init (&p->lock);

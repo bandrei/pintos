@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/console.h"
 #include "filesys/file.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt(struct intr_frame*);
@@ -123,6 +124,8 @@ _sys_exit (int status, bool msg_print)
 
 		//update the info of the current thread
 		//in the child_info list of the parent
+
+
 		for(it = list_begin(&cur->parent->children_info); it != list_end(&cur->parent->children_info);
 					it = list_next(it))
 		{
@@ -166,7 +169,26 @@ _sys_exit (int status, bool msg_print)
 		sema_up(parent_sema);
 	}
 
+	//deallocate all our page table information (i.e. supp_entry,
+	//file_entry, etc).
 
+
+	old_level = intr_disable();
+	struct supp_entry *supp_table = cur->supp_table;
+				struct supp_entry *supp_prev;
+				int call = 0;
+			while(supp_table != NULL)
+			{
+					//printf("call no: %d \n",call);
+				call++;
+					supp_clear_table_ptr(supp_table);
+					supp_prev = supp_table;
+					supp_table = supp_table->next;
+					free(supp_prev);
+
+			}
+			printf("calls %d: ",call);
+	intr_set_level(old_level);
 	thread_exit();
 }
 

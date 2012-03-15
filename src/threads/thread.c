@@ -12,6 +12,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -171,6 +172,7 @@ thread_init (void)
   list_init (&all_list);
   list_init (&waiting_list);
   lock_init (&waiting_lock);
+  lock_init (&frame_lock);
 
   int i;
   for (i = 0; i <= PRI_MAX; i++)

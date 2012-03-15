@@ -42,9 +42,23 @@ pagedir_destroy (uint32_t *pd)
         uint32_t *pt = pde_get_pt (*pde);
         uint32_t *pte;
         
+        //No need to iterate as we do it more effciently in
+        //_sys_exit using the frame table;
+
+        //Trade-off between space for the frame table
+        //and speed of iterating through all of the
+        //pte's using locks
+#ifndef FRAME_WITH_ADDR
+        lock_acquire(&frame_lock);
         for (pte = pt; pte < pt + PGSIZE / sizeof *pte; pte++)
           if (*pte & PTE_P) 
+          {
+
             palloc_free_page (pte_get_page (*pte));
+          }
+
+        lock_release(&frame_lock);
+#endif
         palloc_free_page (pt);
       }
   palloc_free_page (pd);

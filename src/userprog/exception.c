@@ -11,6 +11,7 @@
 #include "userprog/pagedir.h"
 #include "vm/page.h"
 #include "vm/mmap.h"
+#include "vm/frame.h"
 #include "filesys/file.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -188,14 +189,14 @@ page_fault (struct intr_frame *f)
 
 			  // TODO: use locking
 			//  printf("SUP_STATE_EXE is set \n");
-			  enum intr_level oldlevel = intr_disable();
+			  lock_acquire(&frame_lock);
 
 			  uint32_t *newpage = palloc_get_page(PAL_USER);
 			  void *upage = pg_round_down(fault_addr);
 			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
 
 
-			  intr_set_level(oldlevel);
+			  lock_release(&frame_lock);
 
 			  struct mmap_entry *exe_map =
 				(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
