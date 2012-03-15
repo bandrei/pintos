@@ -176,18 +176,15 @@ _sys_exit (int status, bool msg_print)
 	old_level = intr_disable();
 	struct supp_entry *supp_table = cur->supp_table;
 				struct supp_entry *supp_prev;
-				int call = 0;
 			while(supp_table != NULL)
 			{
 					//printf("call no: %d \n",call);
-				call++;
 					supp_clear_table_ptr(supp_table);
 					supp_prev = supp_table;
 					supp_table = supp_table->next;
 					free(supp_prev);
 
 			}
-			printf("calls %d: ",call);
 	intr_set_level(old_level);
 	thread_exit();
 }
