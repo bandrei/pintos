@@ -161,14 +161,15 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    	//to trade off space then re-enable the code here and
 	    	//disable the one in pagedir_destroy
 #ifdef FRAME_WITH_ADDR
-	      /*struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
-	      palloc_free_page(f_info->kpage_addr);*/
+	      struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
+	      palloc_free_page(f_info->kpage_addr);
 #endif
 	      s_entry->table_ptr.ram_table_entry=NULL;
 	      break;
 	    }
 	    case SUP_STATE_SWAP:
 	    {
+
 	      free(s_entry->table_ptr.swap_table_entry);
 	      s_entry->table_ptr.swap_table_entry = NULL;
 	      break;
