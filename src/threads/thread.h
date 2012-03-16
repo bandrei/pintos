@@ -141,6 +141,7 @@ struct thread
 #endif
     struct supp_entry *supp_table;
     uint8_t *stack_bottom;
+    uint8_t *stack_save_sys;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

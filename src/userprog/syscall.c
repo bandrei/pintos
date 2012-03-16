@@ -200,7 +200,7 @@ syscall_handler (struct intr_frame *f)
 {
 
   //get system call number and call appropriate function
-
+	thread_current()->stack_save_sys = f->esp;
   //need to do checks here
 	POINTER_CHECK(f->esp, sizeof(int));
 	switch(*(unsigned int *)f->esp)

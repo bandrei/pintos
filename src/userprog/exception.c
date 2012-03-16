@@ -175,7 +175,7 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 	*/
 
-  if(fault_addr < PHYS_BASE)
+  if(f->cs == SEL_UCSEG)
   {
 	  struct supp_entry *tmp_entry;
 	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
@@ -214,7 +214,7 @@ page_fault (struct intr_frame *f)
 			 kill(f);
 		  }
 	  }
-	  else if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp))
+	   else if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, false))
 	  {
 	  	 lock_acquire(&frame_lock);
 
@@ -233,10 +233,25 @@ page_fault (struct intr_frame *f)
 		kill(f);
 	  }
   }
-  else
+  else if(f->cs == SEL_KCSEG)
   {
+	  if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, true))
+	  {
+		  lock_acquire(&frame_lock);
+
+		  		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+		  		  void *upage = pg_round_down(fault_addr);
+		  		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+		  		  {
+		  			  _sys_exit(-1,true);
+		  		  }
+		  		  thread_current()->stack_bottom = upage;
+		  		  lock_release(&frame_lock);
+	  }
+	  else
 	  kill(f);
   }
+  else kill(f);
 
 }
 

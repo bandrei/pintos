@@ -278,13 +278,20 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
 
 /*
  * Checks if a page address has any pages already existing within RANGE*/
-bool pagedir_page_growable(uint32_t *pd, const void *vpage, const uint8_t *esp)
+bool pagedir_page_growable(uint32_t *pd, const void *vpage, const uint8_t *esp, bool kcseg)
 {
 	char *page_check = (char *)pg_round_up(vpage);
+	char *upper_base = (char *)PHYS_BASE;
 	unsigned int page_range = 1;
 
-	return page_check >= PHYS_BASE - (PAGE_RANGE * 4096) &&
-			(page_check >= esp || page_check >= esp-32);
+	if(kcseg)
+		return (page_check >= PHYS_BASE - (PAGE_RANGE * 4096)) &&
+				(page_check >= thread_current()->stack_save_sys || page_check >= thread_current()->stack_save_sys-32);
+	else
+	{
+	return (page_check >= PHYS_BASE - (PAGE_RANGE * 4096)) &&
+			(vpage >= esp || vpage >= esp-32);
+	}
 	/*for(page_range = 0; page_range<=PAGE_RANGE;page_range++)
 	{
 		page_check += PGSIZE;
