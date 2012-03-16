@@ -145,6 +145,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 
       *pte = pte_create_user (kpage, writable);
 
+
       //re-synch TLB
       invalidate_pagedir(pd);
 
@@ -257,13 +258,13 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
 {
   uint32_t *pte = lookup_page (pd, vpage, false);
   void *target = NULL;
-  
   if (pte != NULL)
   {
       ASSERT((*pte & PTE_P) == 0U);
       /**
        * pte[0] Present bit must be 0
        **/
+      if(*pte!=0)
       target = (struct supp_entry *) ((*pte >> 1U) | 0x80000000U);
       /**
        * POST: target[31] is set to 1 and
@@ -271,6 +272,44 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
        **/
   }
   return target;
+}
+
+
+/*
+ * Checks if a page address has any pages already existing within RANGE*/
+bool pagedir_page_growable(uint32_t *pd, const void *vpage)
+{
+	char *page_check = (char *)pg_round_up(vpage);
+	unsigned int page_range = 1;
+
+	return page_check >= PHYS_BASE - (PAGE_RANGE * 4096) ;
+	/*for(page_range = 0; page_range<=PAGE_RANGE;page_range++)
+	{
+		page_check += PGSIZE;
+		printf("page_ addr %x \n", page_check);
+		if(page_check == PHYS_BASE) break;
+
+		*pte = lookup_page(pd,page_check,false);
+		if(pte!=NULL)
+		{
+			if(*pte!=0)
+			{
+				return true;
+			}
+
+		}
+
+		page_check -= 2*PGSIZE;
+		if(page_check == 0) break;
+
+		*pte = lookup_page(pd,page_check,false);
+		if(pte!=NULL)
+		{
+			if(*pte != 0) return true;
+		}
+
+	}*/
+	//return true;
 }
 
 

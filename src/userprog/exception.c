@@ -172,17 +172,17 @@ page_fault (struct intr_frame *f)
           fault_addr,
           not_present ? "not present" : "rights violation",
          write ? "writing" : "reading",
-          user ? "user" : "kernel");*/
-
+          user ? "user" : "kernel");
+	*/
   if(fault_addr < PHYS_BASE)
   {
 	  struct supp_entry *tmp_entry;
 	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
 			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
-	  //printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
+	 // printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
 	  if(tmp_entry != NULL)
-	   {
+	  {
 		  //printf("arena %x \n", tmp_entry->info_arena);
 		  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_EXE)
 		  {
@@ -210,11 +210,33 @@ page_fault (struct intr_frame *f)
 		  }
 		  else
 		  {
-			  kill(f);
+			  /*lock_acquire(&frame_lock);
+
+			  			  uint32_t *newpage = palloc_get_page(PAL_USER);
+			  			  void *upage = pg_round_down(fault_addr);
+			  			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+
+
+			  			  lock_release(&frame_lock);*/
+			 kill(f);
 		  }
-	   }
-	   else
+	  }
+	  else if(pagedir_page_growable(thread_current()->pagedir, fault_addr))
+	  {
+	  	 lock_acquire(&frame_lock);
+
+		  uint32_t *newpage = palloc_get_page(PAL_USER);
+		  void *upage = pg_round_down(fault_addr);
+		  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+		  lock_release(&frame_lock);
+
+	  			  //kill(f);
+
+	  }
+	  else
+	  {
 		kill(f);
+	  }
   }
   else
   {

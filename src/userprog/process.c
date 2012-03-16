@@ -221,7 +221,7 @@ process_wait (tid_t child_tid UNUSED)
   if(!already_exit)
   {
 	  sema_down(&cur->thread_wait);
-	  enum intr_level old_level = intr_disable();
+	  old_level = intr_disable();
 	  cur->child_wait_tid = -1;
 	  if(c_i != NULL) e_status = c_i->exit_status;
 	  intr_set_level(old_level);
