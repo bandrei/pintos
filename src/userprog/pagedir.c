@@ -121,6 +121,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
   ASSERT (vtop (kpage) >> PTSHIFT < init_ram_pages);
   ASSERT (pd != init_page_dir);
 
+
   pte = lookup_page (pd, upage, true);
 
   if (pte != NULL) 
@@ -277,13 +278,13 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
 
 /*
  * Checks if a page address has any pages already existing within RANGE*/
-bool pagedir_page_growable(uint32_t *pd, const void *vpage)
+bool pagedir_page_growable(uint32_t *pd, const void *vpage, const uint8_t *esp)
 {
 	char *page_check = (char *)pg_round_up(vpage);
 	unsigned int page_range = 1;
 
-	printf("VPAGE: %x \n", vpage);
-	return page_check >= PHYS_BASE - (PAGE_RANGE * 4096) ;
+	return page_check >= PHYS_BASE - (PAGE_RANGE * 4096) &&
+			(page_check >= esp || page_check >= esp-32);
 	/*for(page_range = 0; page_range<=PAGE_RANGE;page_range++)
 	{
 		page_check += PGSIZE;

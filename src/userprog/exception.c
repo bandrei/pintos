@@ -175,22 +175,16 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 	*/
 
-  printf("ESP: %x \n", f->esp);
   if(fault_addr < PHYS_BASE)
   {
 	  struct supp_entry *tmp_entry;
 	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
-			  //printf("File offset %x \n\n", thread_current()->our_file->pos);
-	 // printf("tmp_entry ptr: %x \n",(uint32_t)tmp_entry);
 
 	  if(tmp_entry != NULL)
 	  {
-		  //printf("arena %x \n", tmp_entry->info_arena);
 		  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_EXE)
 		  {
 
-			  // TODO: use locking
-			//  printf("SUP_STATE_EXE is set \n");
 			  lock_acquire(&frame_lock);
 
 			  uint32_t *newpage = palloc_get_page(PAL_USER);
@@ -199,9 +193,9 @@ page_fault (struct intr_frame *f)
 
 			  void *upage = pg_round_down(fault_addr);
 
+			  if(upage>= thread_current()->stack_bottom) _sys_exit(-1,true);
 			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
 				  _sys_exit(-1,true);
-
 
 			  lock_release(&frame_lock);
 
@@ -217,27 +211,21 @@ page_fault (struct intr_frame *f)
 		  }
 		  else
 		  {
-			  /*lock_acquire(&frame_lock);
-
-			  			  uint32_t *newpage = palloc_get_page(PAL_USER);
-			  			  void *upage = pg_round_down(fault_addr);
-			  			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
-
-
-			  			  lock_release(&frame_lock);*/
 			 kill(f);
 		  }
 	  }
-	  else if(pagedir_page_growable(thread_current()->pagedir, fault_addr))
+	  else if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp))
 	  {
 	  	 lock_acquire(&frame_lock);
 
-		  uint32_t *newpage = palloc_get_page(PAL_USER);
+		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 		  void *upage = pg_round_down(fault_addr);
-		  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+		  {
+			  _sys_exit(-1,true);
+		  }
+		  thread_current()->stack_bottom = upage;
 		  lock_release(&frame_lock);
-
-	  			  //kill(f);
 
 	  }
 	  else

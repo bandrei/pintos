@@ -140,6 +140,7 @@ struct thread
     uint32_t *pagedir;  /* Page directory. */
 #endif
     struct supp_entry *supp_table;
+    uint8_t *stack_bottom;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

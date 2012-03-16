@@ -503,6 +503,7 @@ _thread_create (const char *name, int priority,
   list_push_back(&parent->children_info, &info->info_elem);
   list_push_back(&parent->children,&t->child_elem);
 
+  t->stack_bottom = PHYS_BASE;
 
 
   /* Prepare thread for first run by initializing its stack.

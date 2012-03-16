@@ -614,7 +614,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	 // printf("upage: %x \n", upage);
       	  //printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
 
-
+      	  if(upage >= thread_current()->stack_bottom) _sys_exit(-1,true);
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);
 
       	  (page_read_bytes+file->pos >= file_length(file)) ? file_seek(file,file_length(file)-1) : file_seek(file,file->pos+page_read_bytes);
@@ -641,7 +641,11 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+      {
         *esp = PHYS_BASE;
+        thread_current()->stack_bottom = ((uint8_t *) PHYS_BASE) - PGSIZE;
+
+      }
       else
       {
         palloc_free_page (kpage);
