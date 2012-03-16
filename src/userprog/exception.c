@@ -174,6 +174,8 @@ page_fault (struct intr_frame *f)
          write ? "writing" : "reading",
           user ? "user" : "kernel");
 	*/
+
+  printf("ESP: %x \n", f->esp);
   if(fault_addr < PHYS_BASE)
   {
 	  struct supp_entry *tmp_entry;
@@ -192,8 +194,13 @@ page_fault (struct intr_frame *f)
 			  lock_acquire(&frame_lock);
 
 			  uint32_t *newpage = palloc_get_page(PAL_USER);
+			  if(newpage == NULL)
+				  _sys_exit(-1,true);
+
 			  void *upage = pg_round_down(fault_addr);
-			  pagedir_set_page(thread_current()->pagedir, upage, newpage, true);
+
+			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+				  _sys_exit(-1,true);
 
 
 			  lock_release(&frame_lock);

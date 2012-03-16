@@ -282,6 +282,7 @@ bool pagedir_page_growable(uint32_t *pd, const void *vpage)
 	char *page_check = (char *)pg_round_up(vpage);
 	unsigned int page_range = 1;
 
+	printf("VPAGE: %x \n", vpage);
 	return page_check >= PHYS_BASE - (PAGE_RANGE * 4096) ;
 	/*for(page_range = 0; page_range<=PAGE_RANGE;page_range++)
 	{
