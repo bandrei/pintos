@@ -44,12 +44,12 @@ void swap_init()
 uintptr_t paging_get_free_frame()
 {
   ASSERT(frame_table != NULL);
-  uint32_t slot = 0;
+  /*uint32_t slot = 0;
   for (; slot < user_max_pages; slot++ )
   {
     if (frame_table[slot].s_entry == NULL)
       return (slot * PGSIZE);
-  }
+  }*/
   // POST: no free frames
   return paging_eviction();
 }
@@ -65,7 +65,7 @@ void paging_evict(uintptr_t kpagev)
   uintptr_t ktop = vtop(kpage);
   
   // Look up in the frame table:
-  struct frame_info * kframe = &frame_table[ktop/PGSIZE];
+  struct frame_info * kframe = &frame_table[FRAME_INDEX(kpage)];
   
   if (kframe->s_entry == NULL)
     PANIC ("Attempt to evict an empty frame");
@@ -87,9 +87,10 @@ void paging_evict(uintptr_t kpagev)
   // Update the supp_entry:
   SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
   
-  pagedir_set_ptr(kframe->pd, (void *) ktop, ksup);
+  pagedir_set_ptr(kframe->pd, (void *) kpage, ksup);
   
-  frame_clear_map((uint32_t *) ktop);
+  palloc_free_page(kpage);
+  frame_clear_map((uint32_t *) kpage);
   
 }
 
@@ -113,14 +114,14 @@ uintptr_t paging_eviction()
       ((frame_table[slot].flags & FRAME_STICKY) == 0 ))
     {
       free_slot = slot;
-      paging_evict(slot*PGSIZE);
+      paging_evict(FRAME_VADDR((slot)));
     }
   }
   
-  if (free_slot < user_max_pages)
+ // if (free_slot < user_max_pages)
     return free_slot*PGSIZE;
-  else
-    PANIC ("Eviction couldn't evict any frames");
+ // else
+  //  PANIC ("Eviction couldn't evict any frames");
 }
 
 void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
@@ -163,7 +164,9 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 #ifdef FRAME_WITH_ADDR
 	      struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
 	      lock_acquire(&frame_lock);
-	      palloc_free_page(f_info->kpage_addr);
+	     // printf(" ADDR 1: %x \n ADDR 2: %x", FRAME_VADDR((f_info-frame_table)), (f_info - frame_table) * 4096 + (uint8_t *)user_start );
+	      palloc_free_page(FRAME_VADDR((f_info-frame_table)));
+	     // palloc_free_page((f_info - frame_table) * 4096 + (uint8_t *)user_start);
 	      lock_release(&frame_lock);
 #endif
 	      s_entry->table_ptr.ram_table_entry=NULL;

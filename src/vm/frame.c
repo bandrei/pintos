@@ -7,6 +7,7 @@
 
 struct frame_info *frame_table;
 struct lock frame_lock;
+uint32_t last_frame_freed;
 
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir)
 {
@@ -18,7 +19,7 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir)
 
     //re-enable if storing the kpage_addr
 #ifdef FRAME_WITH_ADDR
-    kframe -> kpage_addr = kpage;
+    //kframe -> kpage_addr = kpage;
 #endif
 
 

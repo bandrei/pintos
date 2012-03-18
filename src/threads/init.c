@@ -134,6 +134,7 @@ main (void)
 
   frame_table = malloc(sizeof(struct frame_info) * user_max_pages);
   frame_table_init(frame_table, user_max_pages);
+  last_frame_freed = 0;
   printf ("Boot complete.\n");
   /* Run actions specified on kernel command line. */
   run_actions (argv);
