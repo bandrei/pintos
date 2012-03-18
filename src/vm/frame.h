@@ -46,7 +46,7 @@ struct frame_info
     uint32_t *pd;
     uint32_t flags;
 
-    //uint32_t *pte;
+    uint32_t *upage;
 	//tid_t pid;
 };
 
@@ -67,7 +67,7 @@ struct frame_info
  * virtual address and a *supp supplemental table entry and
  * have supp_entry point to it
  */
-void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir);
+void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage);
 void frame_clear_map(uint32_t *kpage);
 void frame_table_init (struct frame_info *f_table, uint32_t count);
 uint32_t frame_get_flags(uintptr_t *kpage);

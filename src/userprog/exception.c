@@ -211,6 +211,8 @@ page_fault (struct intr_frame *f)
 		  }
 		  else
 		  {
+			  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_SWAP)
+			 printf("\n in swap using supp %x\n", tmp_entry);
 			 kill(f);
 		  }
 	  }
@@ -240,9 +242,15 @@ page_fault (struct intr_frame *f)
 		  lock_acquire(&frame_lock);
 
 		  		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+		  		  if(newpage==NULL)
+		  		  {
+		  			  lock_release(&frame_lock);
+		  			  _sys_exit(-1,true);
+		  		  }
 		  		  void *upage = pg_round_down(fault_addr);
 		  		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
 		  		  {
+		  			  lock_release(&frame_lock);
 		  			  _sys_exit(-1,true);
 		  		  }
 		  		  thread_current()->stack_bottom = upage;

@@ -9,13 +9,14 @@ struct frame_info *frame_table;
 struct lock frame_lock;
 uint32_t last_frame_freed;
 
-void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir)
+void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage)
 {
 	ASSERT(is_kernel_vaddr(kpage));
     struct frame_info * kframe = &frame_table[FRAME_INDEX(kpage)];
 	kframe -> s_entry=supp;
     kframe -> flags=0;
     kframe -> pd = pagedir;
+    kframe -> upage = upage;
 
     //re-enable if storing the kpage_addr
 #ifdef FRAME_WITH_ADDR

@@ -142,7 +142,10 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     	  s_entry = frame_get_map((uint32_t *)kpage);
       }
 
-      frame_add_map((uint32_t *)kpage,s_entry, pd);
+
+      printf("Setting page at kpage: %x and upage: %x \n", kpage, upage);
+      printf("Suppe entry is at %x \n", s_entry);
+      frame_add_map((uint32_t *)kpage,s_entry, pd, upage);
 
       *pte = pte_create_user (kpage, writable);
 

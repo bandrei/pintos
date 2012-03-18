@@ -76,21 +76,26 @@ void paging_evict(uintptr_t kpagev)
   // Find its supp_entry:
   struct supp_entry * ksup = kframe->s_entry;
   
-  if (SUP_GET_STATE(ksup->info_arena) != SUP_STATE_RAM)
-    PANIC ("Frames supp_entry does not have RAM flag set");
+  //if (SUP_GET_STATE(ksup->info_arena) != SUP_STATE_RAM)
+   // PANIC ("Frames supp_entry does not have RAM flag set");
   
   // TODO: better locking here
   
   // Swap out the frame:
-  swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
+  //swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
   
   // Update the supp_entry:
-  SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
+  if (SUP_GET_STATE(ksup->info_arena) == SUP_STATE_RAM)
+  {
+	  printf("Evicting page at %x \n", kpage);
+	  printf("Using supp entry at %x \n", ksup);
+	  SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
+	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
+	  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+	  palloc_free_page(kpage);
+	  frame_clear_map((uint32_t *) kpage);
+  }
   
-  pagedir_set_ptr(kframe->pd, (void *) kpage, ksup);
-  
-  palloc_free_page(kpage);
-  frame_clear_map((uint32_t *) kpage);
   
 }
 
@@ -178,7 +183,7 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	      lock_acquire(&frame_lock);
 	      free(s_entry->table_ptr.swap_table_entry);
 	      lock_release(&frame_lock);
-	      s_entry->table_ptr.swap_table_entry = NULL;
+	      //s_entry->table_ptr.swap_table_entry = NULL;
 	      break;
 	    }
 	    case SUP_STATE_FILE:
