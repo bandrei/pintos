@@ -379,6 +379,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     //do sensitive operations on the file
   	//therefore do not allow other threads
   	//to write to the file
+  enum intr_level old_level = intr_disable();
     lock_acquire(&file_lock);
     //current thread is now holding a lock on
     //the file system
@@ -388,6 +389,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     t->our_file = file;
     lock_release(&file_lock);
     t->locked_on_file = false;
+    intr_set_level(old_level);
 
 
 
@@ -616,7 +618,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       	//  printf("File offset %d \n\n", s_table_entry->table_ptr.file_table_entry);
       	   //printf("upage: %x \n", upage);
-      	  //printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
+     // 	  printf("exe_entry ptr : %x \n", (uint32_t)exe_table_entry);
+      	//printf("s_entry ptr : %x ", (uint32_t)s_table_entry);
 
       	  if(upage >= thread_current()->stack_bottom) _sys_exit(-1,true);
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);

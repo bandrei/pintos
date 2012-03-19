@@ -85,13 +85,13 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   if (page_cnt == 0)
     return NULL;
 
-  if(flags & PAL_USER && max_frames_allowed >= 2)
-  {
+  //if(flags & PAL_USER && max_frames_allowed >= 200)
+  //{
    //lock_acquire(&frame_lock);
-	  paging_get_free_frame();
-	 max_frames_allowed = 0;
+//	  paging_get_free_frame();
+//	 max_frames_allowed = 0;
    //lock_release(&frame_lock);
-  }
+//  }
   lock_acquire (&pool->lock);
   page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
   lock_release (&pool->lock);
@@ -119,8 +119,8 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		//we could have several pages allocated
 		//TODO: call eviction algorithm
 
-		//paging_get_free_frame();
-		//evicted = true;
+		paging_get_free_frame();
+		evicted = true;
 		//retry the operation after eviction if successful
 		if(evicted)
 		{

@@ -33,6 +33,7 @@ extern uint32_t last_frame_freed;
 
 extern struct frame_info *frame_table;
 extern struct lock frame_lock;
+extern struct list frame_list;
 
 
 struct frame_info
@@ -40,17 +41,15 @@ struct frame_info
 	struct supp_entry *s_entry;
 
 	//re-enable this line if storing the address as well
-#ifdef FRAME_WITH_ADDR
-	uint32_t *kpage_addr;
-#endif
 
     uint32_t *pd;
     uint32_t flags;
-    enum supp_flag prev_supp_flag;
     uint32_t *upage;
-    void *prev_table_ptr;
+
+    struct list_elem frame_elem;
 	//tid_t pid;
 };
+
 
 
 /*

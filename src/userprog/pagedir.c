@@ -31,11 +31,11 @@ void
 pagedir_destroy (uint32_t *pd) 
 {
   uint32_t *pde;
-
   if (pd == NULL)
     return;
 
   ASSERT (pd != init_page_dir);
+  lock_acquire(&frame_lock);
   for (pde = pd; pde < pd + pd_no (PHYS_BASE); pde++)
     if (*pde & PTE_P) 
       {
@@ -49,17 +49,21 @@ pagedir_destroy (uint32_t *pd)
         //and speed of iterating through all of the
         //pte's using locks
 #ifndef FRAME_WITH_ADDR
-        lock_acquire(&frame_lock);
+
         for (pte = pt; pte < pt + PGSIZE / sizeof *pte; pte++)
           if (*pte & PTE_P) 
           {
+        	frame_clear_map(pte_get_page (*pte));
             palloc_free_page (pte_get_page (*pte));
+
           }
-        lock_release(&frame_lock);
+
 #endif
         palloc_free_page (pt);
+
       }
   palloc_free_page (pd);
+  lock_release(&frame_lock);
 }
 
 /* Returns the address of the page table entry for virtual
@@ -134,16 +138,19 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       struct supp_entry *s_entry;
       if(*pte == 0)
       {
-    	 // printf("new s_entry created\n");
+    	 //printf("new s_entry created\n");
     	  s_entry = malloc(sizeof(*s_entry));
     	  init_supp_entry(s_entry);
+    	  //s_entry->table_ptr = &frame_table[FRAME_INDEX(kpage)];
+    	// printf("s_entry ptr : %x ", (uint32_t)s_entry);
+    	 // printf("table_ptr %x \n",&frame_table[FRAME_INDEX(kpage)]);
       }
       else
       {
     	  s_entry = pagedir_get_ptr(pd, upage);
       }
 
-      //printf("s_entry ptr : %x \n\n", (uint32_t)s_entry);
+
       frame_add_map((uint32_t *)kpage,s_entry, pd, upage);
 
       *pte = pte_create_user (kpage, writable);

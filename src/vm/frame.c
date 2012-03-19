@@ -7,6 +7,7 @@
 
 struct frame_info *frame_table;
 struct lock frame_lock;
+struct list frame_list;
 uint32_t last_frame_freed;
 
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage)
@@ -17,8 +18,8 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
     kframe -> flags=0;
     kframe -> pd = pagedir;
     kframe -> upage = upage;
-    kframe -> prev_supp_flag = supp->cur_type;
 
+    list_push_back(&frame_list, &kframe->frame_elem);
     //printf("PREV USPP FLAG %x", kframe -> prev_supp_flag );
     //re-enable if storing the kpage_addr
 #ifdef FRAME_WITH_ADDR
@@ -33,6 +34,11 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
    // SUP_SET_STATE(kframe -> s_entry->info_arena, SUP_STATE_RAM);
     //SUP_UNSET_STATE(kframe -> s_entry->info_arena, SUP_STATE_SWAP);
    // printf("SUPP THAT MIGHT NOT BE RAM %x\n",supp);
+
+
+    //if just loaded from swap it means we are no longer with
+    //mapped files or executables and therfore we can map this
+    //to the frame table
     kframe->s_entry->cur_type = RAM;
     /*if(SUPP_GET_FLAG(kframe->s_entry->info_arena)==RAM)
     	printf("is RAM \n");
@@ -53,6 +59,7 @@ void frame_clear_map(uint32_t *kpage)
     // TODO: does vtop(kpage)/PGSIZE == kpage/PGSIZE ?
 	//printf("\n S_ENTRY TYPE: %x\n",frame_table[FRAME_INDEX(kpage)].prev_supp_flag);
 
+	list_remove(&frame_table[FRAME_INDEX(kpage)].frame_elem);
 	frame_table[FRAME_INDEX(kpage)].s_entry=NULL;
     frame_table[FRAME_INDEX(kpage)].flags=0;
 

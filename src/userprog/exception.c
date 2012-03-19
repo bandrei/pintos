@@ -177,6 +177,7 @@ page_fault (struct intr_frame *f)
 
   if(fault_addr < PHYS_BASE)
     {
+	  lock_acquire(&frame_lock);
   	  struct supp_entry *tmp_entry;
   	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
 
@@ -189,8 +190,6 @@ page_fault (struct intr_frame *f)
   			  struct mmap_entry *exe_map =
   			  	 (struct mmap_entry *)tmp_entry->table_ptr;
   			  off_t pos = exe_map->file_ptr;
-  			  lock_acquire(&frame_lock);
-
   			  uint32_t *newpage = palloc_get_page(PAL_USER);
   			 // printf("GOT THIS KPAGE %x \n", newpage);
   			//  printf("OUR S_ENTRY %x\n",tmp_entry);
@@ -216,7 +215,7 @@ page_fault (struct intr_frame *f)
   				  _sys_exit(-1,true);
   			  }
 
-  			  lock_release(&frame_lock);
+
 
 
   			//printf("IN FILE SEEK POINTER COUNT %d", pos);
@@ -225,12 +224,14 @@ page_fault (struct intr_frame *f)
   			  file_seek(thread_current()->our_file,pos);
   			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
   			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
+  			lock_release(&frame_lock);
   			//hex_dump(0,upage,4096,true);
   		  }
   		  else if(tmp_entry->cur_type==SWAP)
   		  {
   			  //printf("\n picking from swap\n");
 
+  			// lock_acquire(&frame_lock);
   			  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
   			 swap_index_t swap_slot = tmp_entry->table_ptr;
   			  if(newpage == NULL)
@@ -252,6 +253,10 @@ page_fault (struct intr_frame *f)
   				  	  	  _sys_exit(-1,true);
 	  		  }
   			  swap_in(swap_table, swap_slot, upage);
+  			lock_release(&frame_lock);
+  			  //free the swap slot after swap in
+
+
   			 // printf("KPAGE %x UPAGE %x\n",newpage, upage);
   			 // hex_dump(0,upage,4096,true);
   			  //printf("\n");
@@ -272,7 +277,7 @@ page_fault (struct intr_frame *f)
   	  {
 
   		   //printf("WE INHERE?\n");
-  	  	 lock_acquire(&frame_lock);
+  	  	 //lock_acquire(&frame_lock);
 
   		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
   		  void *upage = pg_round_down(fault_addr);

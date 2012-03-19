@@ -171,6 +171,7 @@ thread_init (void)
   
   list_init (&all_list);
   list_init (&waiting_list);
+  list_init (&frame_list);
   lock_init (&waiting_lock);
   lock_init (&frame_lock);
 

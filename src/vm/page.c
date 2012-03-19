@@ -94,7 +94,7 @@ void paging_evict(uintptr_t kpagev)
 		// printf("exe it is \n\n");
 
 		//printf("Evicting: %x  %x ", ksup->cur_type, ksup->init_type);
-	 if(ksup->init_type !=EXE)
+	 if(ksup->init_type ==RAM)
 	 {
 	  ksup->cur_type = SWAP;
 	  //SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
@@ -103,7 +103,7 @@ void paging_evict(uintptr_t kpagev)
 	  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 	  ksup->table_ptr= swapslot;
 	 }
-	 else
+	 else if(ksup->init_type == EXE)
 	 {
 		// printf("\nNOT RAM: EVICTING THIS SUPP ENTRY %x\n",ksup);
 		ksup->cur_type = ksup->init_type;
@@ -111,6 +111,7 @@ void paging_evict(uintptr_t kpagev)
 		{
 			ksup->cur_type = SWAP;
 			 swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+			 pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		    ksup->table_ptr= swapslot;
 		}
 		// ksup->table_ptr = kframe;
@@ -122,7 +123,9 @@ void paging_evict(uintptr_t kpagev)
   }
   else
   {
-	  printf("what the hell is this?\n");
+
+	  printf("frame index %d\n",FRAME_INDEX(kpage));
+	  printf("what the hell is this? %x %x\n",ksup->cur_type, ksup->init_type);
   }
   
   
@@ -142,25 +145,44 @@ uintptr_t paging_eviction()
   uint32_t slot = 0;
   uint32_t free_slot = user_max_pages;
   int evict_once = 0;
+
+  //iterate throught the FIFO frame list
+
+  /*struct list_elem *it;
+  struct frame_info *fi;
+
+  for(it=list_begin(&frame_list); it!=list_end(&frame_list);
+		  it=list_next(it))
+  {
+	  fi=list_entry(it,struct frame_info, frame_elem);
+	  if(fi->s_entry!=NULL && (fi->flags & FRAME_STICKY == 0))
+	  {
+		  if(fi->flags & FRAME_SECOND_CHANCE)
+		  {
+
+		  }
+	  }
+  }*/
+
   for (; slot < user_max_pages; slot++ )
   {
     
     if ((frame_table[slot].s_entry != NULL) && 
       ((frame_table[slot].flags & FRAME_STICKY) == 0 ))
     {
-    	//if(frame_table[slot].flags & FRAME_SECOND_CHANCE)
-    //	{
+    	if(frame_table[slot].flags & FRAME_SECOND_CHANCE)
+    	{
     		free_slot = slot;
     		paging_evict(FRAME_VADDR((slot)));
-    	//	if(evict_once == 2)
-    		//	break;
-    		//evict_once++;
+    		if(evict_once == 4)
+    			break;
+    		evict_once++;
     		//break;
-    	//}
-    	//else
-    	//{
-    		//frame_table[slot].flags = (frame_table[slot].flags | FRAME_SECOND_CHANCE);
-    	//}
+    	}
+    	else
+    	{
+   		frame_table[slot].flags = (frame_table[slot].flags | FRAME_SECOND_CHANCE);
+    	}
     }
   }
   
@@ -220,7 +242,42 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 		 s_entry->table_ptr= NULL;
 	}*/
 	//all pointers should be not NULL at this point
-	  switch(s_entry->cur_type)
+
+	/*if(s_entry->cur_type == RAM && s_entry->init_type != RAM)
+	{
+		printf("TYPE %x\n",s_entry->init_type );
+		if(s_entry->table_ptr == NULL)
+			printf("WHAT??\n");
+		lock_acquire(&frame_lock);
+		free(s_entry->table_ptr);
+		lock_release(&frame_lock);
+	}*/
+	/*if(s_entry->init_type != RAM)
+	{
+		lock_acquire(&frame_lock);
+		printf("s_entry ptr %x\n",s_entry->table_ptr);
+		if(s_entry->table_ptr != NULL)
+		free(s_entry->table_ptr);
+		lock_release(&frame_lock);
+	}*/
+	if(s_entry->cur_type == SWAP)
+	{
+		//remove from swap
+	}
+	else if(s_entry->cur_type == RAM)
+	{
+		//printf don't do anything as pagedir will take care
+		//of it (supp_entry might not contain a pointer to supp
+		//entry
+		//frame_clear_map(s_entry->table_ptr);
+		//palloc_free_page(s_entry->table_ptr);
+	}
+	else if(s_entry->cur_type == EXE)
+	{
+	//	lock_acquire(&frame_lock);
+     	free(s_entry->table_ptr);
+	}
+	  /*switch(s_entry->init_type)
 	  {
 	    case RAM:
 	    {
@@ -240,6 +297,7 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	     // palloc_free_page((f_info - frame_table) * 4096 + (uint8_t *)user_start);
 	      lock_release(&frame_lock);
 #endif
+	      //frame
 	      s_entry->table_ptr=NULL;
 	      break;
 	    }
@@ -267,7 +325,7 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    case EXE:
 	    {
 	      lock_acquire(&frame_lock);
-	      free(s_entry->table_ptr);
+	      //free(s_entry->table_ptr);
 	      lock_release(&frame_lock);
 	      s_entry->table_ptr = NULL;
 	      break;
@@ -276,6 +334,6 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    default:
 	      PANIC("Invalid supp_entry state");
 	      break;
-	  }
+	  }*/
 }
 
