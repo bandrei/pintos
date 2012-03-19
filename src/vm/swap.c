@@ -35,6 +35,8 @@ struct swapfile* swap_create(struct block *target)
     
     swap->page_map = bitmap_create (swap->size);
     
+    swap->device = target;
+
     if (swap->page_map == NULL)
       PANIC ("Failed to allocate memory for swapfile map");
     
@@ -112,6 +114,10 @@ void swap_in(struct swapfile* swap, swap_index_t slot, void * dest)
 swap_index_t swap_out(struct swapfile* swap, void * src)
 {
   swap_index_t slot = swap_free_slot(swap);
+
+  //printf("We are swapping...we we are swapping!\n");
+  //printf("KPAGE IN SWAP %x\n",src);
+  //hex_dump(0,src,4096,true);
   swap_put(swap,slot,src);
   return slot;
 }

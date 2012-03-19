@@ -41,6 +41,7 @@ static struct pool kernel_pool, user_pool;
 size_t user_max_pages;
 size_t kernel_max_pages;
 uint32_t *user_start;
+int max_frames_allowed = 0;
 //static size_t user_pages_max;
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
@@ -84,10 +85,11 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   if (page_cnt == 0)
     return NULL;
 
-  if(flags & PAL_USER)
+  if(flags & PAL_USER && max_frames_allowed >= 2)
   {
    //lock_acquire(&frame_lock);
-   paging_get_free_frame();
+	  paging_get_free_frame();
+	  max_frames_allowed = 0;
    //lock_release(&frame_lock);
   }
   lock_acquire (&pool->lock);
@@ -149,6 +151,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		fr_page += PGSIZE;
 	}
   }*/
+  max_frames_allowed++;
   return pages;
 }
 

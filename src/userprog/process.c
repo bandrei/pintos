@@ -605,14 +605,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  exe_table_entry->file_ptr = file->pos;
       	  exe_table_entry->page_offset = page_read_bytes;
           
-          SUP_SET_STATE(s_table_entry->info_arena,SUP_STATE_EXE);
-          //printf("info_arena: %x \n", s_table_entry->info_arena);
-      	  s_table_entry->table_ptr.exe_table_entry = exe_table_entry;
+      	  //printf("IN FILE SEEK POINTER COUNT %d", exe_table_entry->file_ptr);
+          //SUP_SET_STATE(s_table_entry->info_arena,SUP_STATE_EXE);
+          (SUPP_SET_FLAG(s_table_entry->info_arena, EXE));
+      	  //printf("info_arena: %x \n", s_table_entry->info_arena);
+      	  s_table_entry->table_ptr = exe_table_entry;
 
 
       	//  printf("File offset %d \n\n", s_table_entry->table_ptr.file_table_entry);
-      	 // printf("upage: %x \n", upage);
-      	  //printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
+      	   //printf("upage: %x \n", upage);
+      	 // printf("s_entry ptr : %x \n", (uint32_t)s_table_entry);
 
       	  if(upage >= thread_current()->stack_bottom) _sys_exit(-1,true);
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);

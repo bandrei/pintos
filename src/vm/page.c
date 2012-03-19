@@ -15,7 +15,7 @@ void init_supp_entry(struct supp_entry *s_entry)
 	ASSERT(s_entry != NULL);
 	s_entry->info_arena = 0;
 	s_entry->next = NULL;
-	supp_set_table_ptr(s_entry, NULL);
+	s_entry->table_ptr = NULL;
 	//put the s_entry at the head of the list
 	s_entry->next = thread_current()->supp_table;
 	thread_current()->supp_table = s_entry;
@@ -85,15 +85,20 @@ void paging_evict(uintptr_t kpagev)
   //swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
   
   // Update the supp_entry:
-  if (SUP_GET_STATE(ksup->info_arena) == SUP_STATE_RAM)
+ if (SUPP_GET_FLAG(ksup->info_arena)==RAM)
   {
-	  printf("Evicting page at %x \n", kpage);
-	  printf("Using supp entry at %x \n", ksup);
-	  SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
+	  (SUPP_SET_FLAG(ksup->info_arena,SWAP));
+	  //SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
+	  //printf("\nEVICTING THIS SUPP ENTRY %x\n",ksup);
 	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
 	  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+	  ksup->table_ptr= swapslot;
 	  palloc_free_page(kpage);
 	  frame_clear_map((uint32_t *) kpage);
+  }
+  else
+  {
+	  printf("what the hell is this?\n");
   }
   
   
@@ -131,7 +136,7 @@ uintptr_t paging_eviction()
 
 void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
 {
-  switch(SUP_GET_STATE(s_entry->info_arena)) {
+  /*switch(SUP_GET_STATE(s_entry->info_arena)) {
     case SUP_STATE_RAM:
       s_entry->table_ptr.ram_table_entry = address;
       break;
@@ -148,13 +153,38 @@ void supp_set_table_ptr(struct supp_entry *s_entry, void *address)
     	//printf("SUPP ENTRY TRYING TO ACCESS %x \n\n BAD state %x\n",s_entry, s_entry->info_arena);
       PANIC("Invalid supp_entry state");
       break;
-  }
+  }*/
 }
 
 void supp_clear_table_ptr(struct supp_entry *s_entry)
 {
+
+	/*if(SUPP_GET_FLAG(s_entry->info_arena,SUPP_IS_RAM))
+	{
+#ifdef FRAME_WITH_ADDR
+	      struct frame_info *f_info = s_entry->table_ptr;
+	      lock_acquire(&frame_lock);
+	     // printf(" ADDR 1: %x \n ADDR 2: %x", FRAME_VADDR((f_info-frame_table)), (f_info - frame_table) * 4096 + (uint8_t *)user_start );
+	      palloc_free_page(FRAME_VADDR((f_info-frame_table)));
+	     // palloc_free_page((f_info - frame_table) * 4096 + (uint8_t *)user_start);
+	      lock_release(&frame_lock);
+#endif
+	      s_entry->table_ptr=NULL;
+	}
+	else if(!SUPP_GET_FLAG(s_entry->info_arena,SUPP_IS_RAM))
+	{
+		//clear the swap partition
+	}
+	else
+	{
+
+		 lock_acquire(&frame_lock);
+		 free(s_entry->table_ptr);
+		 lock_release(&frame_lock);
+		 s_entry->table_ptr= NULL;
+	}*/
 	//all pointers should be not NULL at this point
-	  switch(SUP_GET_STATE(s_entry->info_arena))
+	  switch(SUPP_GET_FLAG(s_entry->info_arena))
 	  {
 	    case SUP_STATE_RAM:
 	    {
@@ -167,21 +197,23 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    	//to trade off space then re-enable the code here and
 	    	//disable the one in pagedir_destroy
 #ifdef FRAME_WITH_ADDR
-	      struct frame_info *f_info = s_entry->table_ptr.ram_table_entry;
+	      struct frame_info *f_info = s_entry->table_ptr;
 	      lock_acquire(&frame_lock);
 	     // printf(" ADDR 1: %x \n ADDR 2: %x", FRAME_VADDR((f_info-frame_table)), (f_info - frame_table) * 4096 + (uint8_t *)user_start );
 	      palloc_free_page(FRAME_VADDR((f_info-frame_table)));
 	     // palloc_free_page((f_info - frame_table) * 4096 + (uint8_t *)user_start);
 	      lock_release(&frame_lock);
 #endif
-	      s_entry->table_ptr.ram_table_entry=NULL;
+	      s_entry->table_ptr=NULL;
 	      break;
 	    }
 	    case SUP_STATE_SWAP:
 	    {
 
 	      lock_acquire(&frame_lock);
-	      free(s_entry->table_ptr.swap_table_entry);
+	      //TODO: remove from the swap parition as necessary
+
+
 	      lock_release(&frame_lock);
 	      //s_entry->table_ptr.swap_table_entry = NULL;
 	      break;
@@ -190,18 +222,18 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	    {
 
 	      lock_acquire(&frame_lock);
-	      free(s_entry->table_ptr.file_table_entry);
+	      free(s_entry->table_ptr);
 	      lock_release(&frame_lock);
-	      s_entry->table_ptr.file_table_entry = NULL;
+	      s_entry->table_ptr = NULL;
 	      break;
 
 	    }
 	    case SUP_STATE_EXE:
 	    {
 	      lock_acquire(&frame_lock);
-	      free(s_entry->table_ptr.exe_table_entry);
+	      free(s_entry->table_ptr);
 	      lock_release(&frame_lock);
-	      s_entry->table_ptr.exe_table_entry = NULL;
+	      s_entry->table_ptr = NULL;
 	      break;
 
 	    }

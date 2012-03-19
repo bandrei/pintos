@@ -256,7 +256,10 @@ parse_options (char **argv)
         scratch_bdev_name = value;
 #ifdef VM
       else if (!strcmp (name, "-swap"))
+      {
         swap_bdev_name = value;
+        printf("SWAP SIZE: %c\n", swap_bdev_name);
+      }
 #endif
 #endif
       else if (!strcmp (name, "-rs"))
@@ -265,7 +268,9 @@ parse_options (char **argv)
         thread_mlfqs = true;
 #ifdef USERPROG
       else if (!strcmp (name, "-ul"))
+      {
         user_page_limit = atoi (value);
+      }
 #endif
       else
         PANIC ("unknown option `%s' (use -h for help)", name);

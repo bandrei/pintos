@@ -28,8 +28,17 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
     //printf("KFRAME KPAGE: %x \n",kpage);
     //printf("S_ENTRY: %x \n", supp);
     //printf("KFRAME in S_ENTRY: %x \n", kframe->kpage_addr);
-    SUP_SET_STATE(kframe -> s_entry->info_arena, SUP_STATE_RAM);
-	supp_set_table_ptr(frame_table[FRAME_INDEX(kpage)].s_entry, &frame_table[FRAME_INDEX(kpage)]);
+   // SUP_SET_STATE(kframe -> s_entry->info_arena, SUP_STATE_RAM);
+    //SUP_UNSET_STATE(kframe -> s_entry->info_arena, SUP_STATE_SWAP);
+   // printf("SUPP THAT MIGHT NOT BE RAM %x\n",supp);
+    (SUPP_SET_FLAG(kframe->s_entry->info_arena, RAM));
+    /*if(SUPP_GET_FLAG(kframe->s_entry->info_arena)==RAM)
+    	printf("is RAM \n");
+    else if(SUPP_GET_FLAG(kframe->s_entry->info_arena)!=RAM)
+    	printf("NOT RAM\n");*/
+
+    supp->table_ptr = &frame_table[FRAME_INDEX(kpage)];
+    //supp_set_table_ptr(frame_table[FRAME_INDEX(kpage)].s_entry, &frame_table[FRAME_INDEX(kpage)]);
 
 	//frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
 

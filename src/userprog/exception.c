@@ -175,91 +175,116 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
 	*/
 
-  if(f->cs == SEL_UCSEG)
-  {
-	  struct supp_entry *tmp_entry;
-	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
+  if(fault_addr < PHYS_BASE)
+    {
+  	  struct supp_entry *tmp_entry;
+  	  tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
 
-	  if(tmp_entry != NULL)
-	  {
-		  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_EXE)
-		  {
+  	  if(tmp_entry != NULL)
+  	  {
+  		  if(SUPP_GET_FLAG(tmp_entry->info_arena)== EXE)
+  		  {
+  			 // printf("\n WE DEMAND OUR EXE! \n");
 
-			  lock_acquire(&frame_lock);
+  			  struct mmap_entry *exe_map =
+  			  	 (struct mmap_entry *)tmp_entry->table_ptr;
+  			  off_t pos = exe_map->file_ptr;
+  			  lock_acquire(&frame_lock);
 
-			  uint32_t *newpage = palloc_get_page(PAL_USER);
-			  if(newpage == NULL)
-				  _sys_exit(-1,true);
+  			  uint32_t *newpage = palloc_get_page(PAL_USER);
+  			 // printf("GOT THIS KPAGE %x \n", newpage);
+  			//  printf("OUR S_ENTRY %x\n",tmp_entry);
+  			  if(newpage == NULL)
+  				  _sys_exit(-1,true);
 
-			  void *upage = pg_round_down(fault_addr);
+  			  void *upage = pg_round_down(fault_addr);
 
-			  if(upage>= thread_current()->stack_bottom) _sys_exit(-1,true);
-			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
-				  _sys_exit(-1,true);
+  			  if(upage>= thread_current()->stack_bottom)
+  				  {
+  				  //printf("DO WE DIE HERE\n");
+  				  _sys_exit(-1,true);
+  				  }
+  			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+  			  {
+  				 // printf("or should we fail here?\n");
+  				  _sys_exit(-1,true);
+  			  }
 
-			  lock_release(&frame_lock);
+  			  lock_release(&frame_lock);
 
-			  struct mmap_entry *exe_map =
-				(struct mmap_entry *)tmp_entry->table_ptr.exe_table_entry;
-			  off_t pos = exe_map->file_ptr;
 
-			  size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
+  			// printf("IN FILE SEEK POINTER COUNT %d", pos);
+  			  size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
 
-			  file_seek(thread_current()->our_file,pos);
-			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
-			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
-		  }
-		  else
-		  {
-			  if(SUP_GET_STATE(tmp_entry->info_arena) == SUP_STATE_SWAP)
-			 printf("\n in swap using supp %x\n", tmp_entry);
-			 kill(f);
-		  }
-	  }
-	   else if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, false))
-	  {
-	  	 lock_acquire(&frame_lock);
+  			  file_seek(thread_current()->our_file,pos);
+  			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
+  			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
+  		  }
+  		  else if(SUPP_GET_FLAG(tmp_entry->info_arena)==SWAP)
+  		  {
+  			  //printf("\n picking from swap\n");
 
-		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
-		  void *upage = pg_round_down(fault_addr);
-		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
-		  {
-			  _sys_exit(-1,true);
-		  }
-		  thread_current()->stack_bottom = upage;
-		  lock_release(&frame_lock);
+  			  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+  			 swap_index_t swap_slot = tmp_entry->table_ptr;
+  			  if(newpage == NULL)
+  			  	  _sys_exit(-1,true);
 
-	  }
-	  else
-	  {
-		kill(f);
-	  }
-  }
-  else if(f->cs == SEL_KCSEG)
-  {
-	  if(pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, true))
-	  {
-		  lock_acquire(&frame_lock);
+  			  void *upage = pg_round_down(fault_addr);
+  			//  if(upage>= thread_current()->stack_bottom)
+  			//{
+  				//  printf("here....?\n");
+  				 // _sys_exit(-1,true);
+  			//}
+  			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+	  				  {
+  				  	  	  //printf("or here \n");
+  				  	  	  _sys_exit(-1,true);
+	  				  }
+  			  swap_in(swap_table, swap_slot, upage);
+  			  //printf("KPAGE %x UPAGE %x\n",newpage, upage);
+  			 // hex_dump(0,upage,4096,true);
+  			  //printf("\n");
 
-		  		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
-		  		  if(newpage==NULL)
-		  		  {
-		  			  lock_release(&frame_lock);
-		  			  _sys_exit(-1,true);
-		  		  }
-		  		  void *upage = pg_round_down(fault_addr);
-		  		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
-		  		  {
-		  			  lock_release(&frame_lock);
-		  			  _sys_exit(-1,true);
-		  		  }
-		  		  thread_current()->stack_bottom = upage;
-		  		  lock_release(&frame_lock);
-	  }
-	  else
-	  kill(f);
-  }
-  else kill(f);
+
+  		  }
+  		  else
+  		  {
+  			//if(SUPP_GET_FLAG(tmp_entry->info_arena, SUPP_IS_RAM))
+  			 // printf("S_ENTRY PTR %x\n", tmp_entry);
+  			 // printf("NONE OF THOSE %x\n", SUPP_GET_FLAG(tmp_entry->info_arena));
+  			 kill(f);
+  		  }
+  	  }
+  	   else if((f->cs==SEL_UCSEG)?pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, false) :
+  			   pagedir_page_growable(thread_current()->pagedir, fault_addr, f->esp, true))
+  	  {
+
+  		   //printf("WE INHERE?\n");
+  	  	 lock_acquire(&frame_lock);
+
+  		  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+  		  void *upage = pg_round_down(fault_addr);
+  		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
+  		  {
+  			  _sys_exit(-1,true);
+  		  }
+  		  thread_current()->stack_bottom = upage;
+  		  lock_release(&frame_lock);
+
+  	  }
+  	  else
+  	  {
+  		 // printf("WHAT ARE WE DOING EHER?\n");
+  		kill(f);
+  	  }
+    }
+
+    else
+    {
+    	//printf("PROBABLY JUMP TO NULL \n");
+  	  kill(f);
+    }
+
 
 }
 

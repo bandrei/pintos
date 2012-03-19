@@ -38,22 +38,30 @@ extern struct swapfile *swap_table;
  * if (SUP_GET_STATE(t->info_arena) == SUP_STATE_RAM)
  **/
 
-#define SUP_SET_STATE(VAL,STATE) VAL = ((VAL & SUP_STATE_MASK_SET) | (STATE & SUP_STATE_MASK_GET))
+//#define SUP_SET_STATE(VAL,STATE) VAL = ((VAL & SUP_STATE_MASK_SET) | (STATE & SUP_STATE_MASK_GET))
 
-#define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
+//#define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
+
+//#define SUPP_IS_EXE 4U
+//#define SUPP_IS_RAM 1U
+
+//#define SUPP_SET_FLAG(VAL, FLAG) (VAL = (VAL | FLAG))
+//#define SUPP_UNSET_FLAG(VAL, FLAG) (VAL = (VAL & ~FLAG))
+#define SUPP_GET_FLAG(VAL) (VAL & 3U)
+#define SUPP_SET_FLAG(VAL, FLAG) (VAL = ((VAL | 3U) & FLAG))
 
 
 
-/*
+
 enum supp_flag
 {
 	RAM = 0U,
 	SWAP = 1U,
 	FILE = 2U,
-	EXE = 3U,
-	SUPP_ZERO = 4U
+	EXE = 3U
+	//SUPP_ZERO = 5U
 };
-*/
+
 
 union supp_entry_ptr
 {
@@ -71,7 +79,7 @@ struct supp_entry
 	uint32_t info_arena;
 
 	//pointer to where the page is now (i.e. swap, disk, etc.)
-	union supp_entry_ptr table_ptr;
+	void *table_ptr;
 
 	//tmp hack until mmap implementation
 	uint32_t read_bytes;
