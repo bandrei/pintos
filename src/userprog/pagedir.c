@@ -134,7 +134,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       struct supp_entry *s_entry;
       if(*pte == 0)
       {
-    	  //printf("new s_entry created\n");
+    	 // printf("new s_entry created\n");
     	  s_entry = malloc(sizeof(*s_entry));
     	  init_supp_entry(s_entry);
       }
@@ -143,7 +143,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     	  s_entry = pagedir_get_ptr(pd, upage);
       }
 
-      //printf("s_entry ptr : %x \n", (uint32_t)s_entry);
+      //printf("s_entry ptr : %x \n\n", (uint32_t)s_entry);
       frame_add_map((uint32_t *)kpage,s_entry, pd, upage);
 
       *pte = pte_create_user (kpage, writable);

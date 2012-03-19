@@ -182,7 +182,7 @@ page_fault (struct intr_frame *f)
 
   	  if(tmp_entry != NULL)
   	  {
-  		  if(SUPP_GET_FLAG(tmp_entry->info_arena)== EXE)
+  		  if(tmp_entry->cur_type== EXE)
   		  {
   			 // printf("\n WE DEMAND OUR EXE! \n");
 
@@ -195,39 +195,49 @@ page_fault (struct intr_frame *f)
   			 // printf("GOT THIS KPAGE %x \n", newpage);
   			//  printf("OUR S_ENTRY %x\n",tmp_entry);
   			  if(newpage == NULL)
+  			  {
+  				  printf("can't allocate");
+  				lock_release(&frame_lock);
   				  _sys_exit(-1,true);
+  			  }
 
   			  void *upage = pg_round_down(fault_addr);
 
   			  if(upage>= thread_current()->stack_bottom)
   				  {
-  				  //printf("DO WE DIE HERE\n");
+  				  printf("DO WE DIE HERE\n");
+  				lock_release(&frame_lock);
   				  _sys_exit(-1,true);
   				  }
   			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
   			  {
-  				 // printf("or should we fail here?\n");
+  				  printf("or should we fail here?\n");
+  				lock_release(&frame_lock);
   				  _sys_exit(-1,true);
   			  }
 
   			  lock_release(&frame_lock);
 
 
-  			// printf("IN FILE SEEK POINTER COUNT %d", pos);
+  			//printf("IN FILE SEEK POINTER COUNT %d", pos);
   			  size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
 
   			  file_seek(thread_current()->our_file,pos);
   			  file_read(thread_current()->our_file,upage, exe_map->page_offset);
   			  memset (upage + exe_map->page_offset, 0, page_zero_bytes);
+  			//hex_dump(0,upage,4096,true);
   		  }
-  		  else if(SUPP_GET_FLAG(tmp_entry->info_arena)==SWAP)
+  		  else if(tmp_entry->cur_type==SWAP)
   		  {
   			  //printf("\n picking from swap\n");
 
   			  uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
   			 swap_index_t swap_slot = tmp_entry->table_ptr;
   			  if(newpage == NULL)
+  			  {
+  				lock_release(&frame_lock);
   			  	  _sys_exit(-1,true);
+  			  }
 
   			  void *upage = pg_round_down(fault_addr);
   			//  if(upage>= thread_current()->stack_bottom)
@@ -236,12 +246,13 @@ page_fault (struct intr_frame *f)
   				 // _sys_exit(-1,true);
   			//}
   			  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
-	  				  {
+	  		 {
   				  	  	  //printf("or here \n");
+  				lock_release(&frame_lock);
   				  	  	  _sys_exit(-1,true);
-	  				  }
+	  		  }
   			  swap_in(swap_table, swap_slot, upage);
-  			  //printf("KPAGE %x UPAGE %x\n",newpage, upage);
+  			 // printf("KPAGE %x UPAGE %x\n",newpage, upage);
   			 // hex_dump(0,upage,4096,true);
   			  //printf("\n");
 
@@ -250,7 +261,8 @@ page_fault (struct intr_frame *f)
   		  else
   		  {
   			//if(SUPP_GET_FLAG(tmp_entry->info_arena, SUPP_IS_RAM))
-  			 // printf("S_ENTRY PTR %x\n", tmp_entry);
+  			 // if(tmp_entry->cur_type == RAM)
+  			  printf("S_ENTRY PTR %x\n", tmp_entry);
   			 // printf("NONE OF THOSE %x\n", SUPP_GET_FLAG(tmp_entry->info_arena));
   			 kill(f);
   		  }
@@ -266,6 +278,7 @@ page_fault (struct intr_frame *f)
   		  void *upage = pg_round_down(fault_addr);
   		  if(!pagedir_set_page(thread_current()->pagedir, upage, newpage, true))
   		  {
+  			lock_release(&frame_lock);
   			  _sys_exit(-1,true);
   		  }
   		  thread_current()->stack_bottom = upage;

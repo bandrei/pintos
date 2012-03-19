@@ -21,10 +21,11 @@
  * modify it in the future (e.g. for using aliasing)
  */
 
-#define FRAME_STICKY 1
+#define FRAME_STICKY 1U
+#define FRAME_SECOND_CHANCE 2U
 #define FRAME_INDEX(VAL) ((vtop(VAL)/PGSIZE)-(init_ram_pages-user_max_pages))
 #define FRAME_VADDR(VAL) (ptov((VAL * PGSIZE)+((init_ram_pages-user_max_pages)* PGSIZE)))
-#define FRAME_WITH_ADDR
+//#define FRAME_WITH_ADDR
 
 extern size_t user_max_pages;
 extern size_t kernel_max_pages;
@@ -45,8 +46,9 @@ struct frame_info
 
     uint32_t *pd;
     uint32_t flags;
-
+    enum supp_flag prev_supp_flag;
     uint32_t *upage;
+    void *prev_table_ptr;
 	//tid_t pid;
 };
 

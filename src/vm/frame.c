@@ -17,7 +17,9 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
     kframe -> flags=0;
     kframe -> pd = pagedir;
     kframe -> upage = upage;
+    kframe -> prev_supp_flag = supp->cur_type;
 
+    //printf("PREV USPP FLAG %x", kframe -> prev_supp_flag );
     //re-enable if storing the kpage_addr
 #ifdef FRAME_WITH_ADDR
     //kframe -> kpage_addr = kpage;
@@ -31,13 +33,13 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
    // SUP_SET_STATE(kframe -> s_entry->info_arena, SUP_STATE_RAM);
     //SUP_UNSET_STATE(kframe -> s_entry->info_arena, SUP_STATE_SWAP);
    // printf("SUPP THAT MIGHT NOT BE RAM %x\n",supp);
-    (SUPP_SET_FLAG(kframe->s_entry->info_arena, RAM));
+    kframe->s_entry->cur_type = RAM;
     /*if(SUPP_GET_FLAG(kframe->s_entry->info_arena)==RAM)
     	printf("is RAM \n");
     else if(SUPP_GET_FLAG(kframe->s_entry->info_arena)!=RAM)
     	printf("NOT RAM\n");*/
 
-    supp->table_ptr = &frame_table[FRAME_INDEX(kpage)];
+    //supp->table_ptr = &frame_table[FRAME_INDEX(kpage)];
     //supp_set_table_ptr(frame_table[FRAME_INDEX(kpage)].s_entry, &frame_table[FRAME_INDEX(kpage)]);
 
 	//frame_table[vtop(kpage)/PGSIZE].s_entry->table_ptr.ram_table_entry = &frame_table[vtop(kpage)/PGSIZE];
@@ -49,8 +51,11 @@ void frame_clear_map(uint32_t *kpage)
 	ASSERT(is_kernel_vaddr(kpage));
 	/* there is nothing in the frame so have it point to NULL */
     // TODO: does vtop(kpage)/PGSIZE == kpage/PGSIZE ?
+	//printf("\n S_ENTRY TYPE: %x\n",frame_table[FRAME_INDEX(kpage)].prev_supp_flag);
+
 	frame_table[FRAME_INDEX(kpage)].s_entry=NULL;
     frame_table[FRAME_INDEX(kpage)].flags=0;
+
 }
 
 struct frame_info *

@@ -13,9 +13,10 @@ struct swapfile *swap_table = NULL;
 void init_supp_entry(struct supp_entry *s_entry)
 {
 	ASSERT(s_entry != NULL);
-	s_entry->info_arena = 0;
 	s_entry->next = NULL;
 	s_entry->table_ptr = NULL;
+	s_entry->cur_type = RAM;
+	s_entry->init_type = RAM;
 	//put the s_entry at the head of the list
 	s_entry->next = thread_current()->supp_table;
 	thread_current()->supp_table = s_entry;
@@ -85,16 +86,39 @@ void paging_evict(uintptr_t kpagev)
   //swap_index_t swapslot = swap_out(swap_table, (void *) ktop);
   
   // Update the supp_entry:
- if (SUPP_GET_FLAG(ksup->info_arena)==RAM)
+ if (ksup->cur_type==RAM)
   {
-	  (SUPP_SET_FLAG(ksup->info_arena,SWAP));
+	 //if(ksup->init_type == EXE)
+		// printf("evicting exe\n");
+	 //if(ksup->cur_type == EXE)
+		// printf("exe it is \n\n");
+
+		//printf("Evicting: %x  %x ", ksup->cur_type, ksup->init_type);
+	 if(ksup->init_type !=EXE)
+	 {
+	  ksup->cur_type = SWAP;
 	  //SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
-	  //printf("\nEVICTING THIS SUPP ENTRY %x\n",ksup);
-	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
+	 // printf("\nEVICTING THIS SUPP ENTRY %x\n",ksup);
+	 // pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
 	  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 	  ksup->table_ptr= swapslot;
-	  palloc_free_page(kpage);
+	 }
+	 else
+	 {
+		// printf("\nNOT RAM: EVICTING THIS SUPP ENTRY %x\n",ksup);
+		ksup->cur_type = ksup->init_type;
+		if(pagedir_is_dirty(kframe->pd,kframe->upage))
+		{
+			ksup->cur_type = SWAP;
+			 swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+		    ksup->table_ptr= swapslot;
+		}
+		// ksup->table_ptr = kframe;
+	 }
+	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
 	  frame_clear_map((uint32_t *) kpage);
+	  palloc_free_page(kpage);
+
   }
   else
   {
@@ -117,19 +141,31 @@ uintptr_t paging_eviction()
   
   uint32_t slot = 0;
   uint32_t free_slot = user_max_pages;
+  int evict_once = 0;
   for (; slot < user_max_pages; slot++ )
   {
     
     if ((frame_table[slot].s_entry != NULL) && 
       ((frame_table[slot].flags & FRAME_STICKY) == 0 ))
     {
-      free_slot = slot;
-      paging_evict(FRAME_VADDR((slot)));
+    	//if(frame_table[slot].flags & FRAME_SECOND_CHANCE)
+    //	{
+    		free_slot = slot;
+    		paging_evict(FRAME_VADDR((slot)));
+    	//	if(evict_once == 2)
+    		//	break;
+    		//evict_once++;
+    		//break;
+    	//}
+    	//else
+    	//{
+    		//frame_table[slot].flags = (frame_table[slot].flags | FRAME_SECOND_CHANCE);
+    	//}
     }
   }
   
  // if (free_slot < user_max_pages)
-    return free_slot*PGSIZE;
+    return FRAME_VADDR(free_slot);
  // else
   //  PANIC ("Eviction couldn't evict any frames");
 }
@@ -184,9 +220,9 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 		 s_entry->table_ptr= NULL;
 	}*/
 	//all pointers should be not NULL at this point
-	  switch(SUPP_GET_FLAG(s_entry->info_arena))
+	  switch(s_entry->cur_type)
 	  {
-	    case SUP_STATE_RAM:
+	    case RAM:
 	    {
 	      //no need to free anything at this point
 	    	//pagedir destroy will take care of it
@@ -207,7 +243,7 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	      s_entry->table_ptr=NULL;
 	      break;
 	    }
-	    case SUP_STATE_SWAP:
+	    case SWAP:
 	    {
 
 	      lock_acquire(&frame_lock);
@@ -218,17 +254,17 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	      //s_entry->table_ptr.swap_table_entry = NULL;
 	      break;
 	    }
-	    case SUP_STATE_FILE:
+	    case FILE:
 	    {
 
 	      lock_acquire(&frame_lock);
-	      free(s_entry->table_ptr);
+	     // free(s_entry->table_ptr);
 	      lock_release(&frame_lock);
 	      s_entry->table_ptr = NULL;
 	      break;
 
 	    }
-	    case SUP_STATE_EXE:
+	    case EXE:
 	    {
 	      lock_acquire(&frame_lock);
 	      free(s_entry->table_ptr);

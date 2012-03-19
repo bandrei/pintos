@@ -89,7 +89,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   {
    //lock_acquire(&frame_lock);
 	  paging_get_free_frame();
-	  max_frames_allowed = 0;
+	 max_frames_allowed = 0;
    //lock_release(&frame_lock);
   }
   lock_acquire (&pool->lock);
@@ -119,7 +119,8 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		//we could have several pages allocated
 		//TODO: call eviction algorithm
 
-
+		//paging_get_free_frame();
+		//evicted = true;
 		//retry the operation after eviction if successful
 		if(evicted)
 		{

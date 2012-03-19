@@ -47,18 +47,18 @@ extern struct swapfile *swap_table;
 
 //#define SUPP_SET_FLAG(VAL, FLAG) (VAL = (VAL | FLAG))
 //#define SUPP_UNSET_FLAG(VAL, FLAG) (VAL = (VAL & ~FLAG))
-#define SUPP_GET_FLAG(VAL) (VAL & 3U)
-#define SUPP_SET_FLAG(VAL, FLAG) (VAL = ((VAL | 3U) & FLAG))
+#define SUPP_GET_FLAG(VAL) VAL
+#define SUPP_SET_FLAG(VAL, FLAG) (VAL = FLAG)
 
 
 
 
 enum supp_flag
 {
-	RAM = 0U,
-	SWAP = 1U,
-	FILE = 2U,
-	EXE = 3U
+	RAM = 0,
+	SWAP = 1,
+	FILE = 2,
+	EXE = 3
 	//SUPP_ZERO = 5U
 };
 
@@ -76,13 +76,14 @@ struct supp_entry
 	/* store information in this 32 bit number
 	 * in a bitwise fashion;
 	 */
-	uint32_t info_arena;
+	//uint32_t info_arena;
 
+	enum supp_flag cur_type;
+	enum supp_flag init_type;
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
 
 	//tmp hack until mmap implementation
-	uint32_t read_bytes;
 
 	/*use this in conjunction with a list
 	 *of supplemental table entries
