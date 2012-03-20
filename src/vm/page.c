@@ -13,13 +13,12 @@ struct swapfile *swap_table = NULL;
 void init_supp_entry(struct supp_entry *s_entry)
 {
 	ASSERT(s_entry != NULL);
-	s_entry->next = NULL;
 	s_entry->table_ptr = NULL;
 	s_entry->cur_type = RAM;
 	s_entry->init_type = RAM;
+	s_entry->writable = true;
+	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
 	//put the s_entry at the head of the list
-	s_entry->next = thread_current()->supp_table;
-	thread_current()->supp_table = s_entry;
 }
 /*
 uint32_t supp_get_page_location(struct supp_entry *s_entry)
@@ -107,7 +106,7 @@ void paging_evict(uintptr_t kpagev)
 	 {
 		// printf("\nNOT RAM: EVICTING THIS SUPP ENTRY %x\n",ksup);
 		ksup->cur_type = ksup->init_type;
-		if(pagedir_is_dirty(kframe->pd,kframe->upage))
+		if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
 		{
 			ksup->cur_type = SWAP;
 			 swap_index_t swapslot = swap_out(swap_table, (void *) kpage);

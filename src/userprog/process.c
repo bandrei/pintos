@@ -612,6 +612,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           //(SUPP_SET_FLAG(s_table_entry->cur_type, EXE));
       	  s_table_entry->init_type = EXE;
       	  s_table_entry->cur_type = EXE;
+      	  s_table_entry->writable = writable;
       	  //printf("info_arena: %x \n", s_table_entry->info_arena);
       	  s_table_entry->table_ptr = exe_table_entry;
 

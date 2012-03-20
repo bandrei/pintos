@@ -82,13 +82,13 @@ struct supp_entry
 	enum supp_flag init_type;
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
-
+	bool writable;
 	//tmp hack until mmap implementation
 
 	/*use this in conjunction with a list
 	 *of supplemental table entries
 	 */
-	struct supp_entry *next;
+	struct list_elem supp_elem;
 };
 
 void init_supp_entry(struct supp_entry *s_entry);

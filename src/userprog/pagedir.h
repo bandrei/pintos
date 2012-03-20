@@ -17,6 +17,7 @@ bool pagedir_is_dirty (uint32_t *pd, const void *upage);
 void pagedir_set_dirty (uint32_t *pd, const void *upage, bool dirty);
 bool pagedir_is_accessed (uint32_t *pd, const void *upage);
 void pagedir_set_accessed (uint32_t *pd, const void *upage, bool accessed);
+void pagedir_set_writable(uint32_t *pd, const void *upage, bool writable);
 void pagedir_activate (uint32_t *pd);
 
 void pagedir_set_ptr (uint32_t *pd, const void *vpage, const struct supp_entry *target);

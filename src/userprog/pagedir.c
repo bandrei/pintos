@@ -389,6 +389,23 @@ pagedir_set_accessed (uint32_t *pd, const void *vpage, bool accessed)
     }
 }
 
+
+void pagedir_set_writable(uint32_t *pd, const void *vpage, bool writable)
+{
+	 uint32_t *pte = lookup_page (pd, vpage, false);
+	  if (pte != NULL)
+	    {
+	      if (writable)
+	        *pte =  (*pte | 2U);
+	      else
+	        {
+	          *pte = (*pte & ~2U);
+	          invalidate_pagedir (pd);
+	        }
+	      invalidate_pagedir (pd);
+	    }
+}
+
 /* Loads page directory PD into the CPU's page directory base
    register. */
 void

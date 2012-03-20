@@ -174,9 +174,22 @@ _sys_exit (int status, bool msg_print)
 	//file_entry, etc).
 	int call= 0;
 	struct supp_entry *supp_table = cur->supp_table;
-	struct supp_entry *supp_prev;
+	struct supp_entry *supp_tmp;
 	lock_acquire(&frame_lock);
-	while(supp_table != NULL)
+
+	it=list_begin(&cur->supp_list);
+	while(it!=list_end(&cur->supp_list))
+	{
+
+		supp_tmp = list_entry(it,struct supp_entry, supp_elem);
+		it = supp_tmp->supp_elem.next;
+	    supp_clear_table_ptr(supp_tmp);
+	    list_remove(&supp_tmp->supp_elem);
+	    supp_tmp->supp_elem.next=supp_tmp->supp_elem.prev=NULL;
+		free(supp_tmp);
+	}
+
+	/*while(supp_table != NULL)
 	{
 
 		call++;
@@ -188,7 +201,7 @@ _sys_exit (int status, bool msg_print)
 
 		free(supp_prev);
 
-	}
+	}*/
 	lock_release(&frame_lock);
 	thread_exit();
 }
