@@ -260,6 +260,7 @@ static void page_fault(struct intr_frame *f) {
 		}
 		else
 		{
+			lock_release(&frame_lock);
 			kill(f);
 		}
 	}
