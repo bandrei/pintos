@@ -492,7 +492,7 @@ static void sys_read(struct intr_frame *f)
 
 	//pin the buffer frame
 	frame_pin(thread_current()->pagedir, (uint8_t *)buff_addr,
-				(uint8_t *)buff_addr+strlen(buff_addr)+1);
+				(uint8_t *)buff_addr+buff_size);
 
 	//acquire file lock and perform operations
 	acquire_file_lock();
@@ -528,7 +528,7 @@ static void sys_read(struct intr_frame *f)
 
 	//unpin the buffer frame
 	frame_unpin(thread_current()->pagedir, (uint8_t *)buff_addr,
-				(uint8_t *)buff_addr+strlen(buff_addr)+1);
+				(uint8_t *)buff_addr+buff_size);
 
 
 }
@@ -557,7 +557,7 @@ static void sys_write(struct intr_frame *f)
 
 	//pin the buffer frame
 	frame_pin(thread_current()->pagedir, (uint8_t *)buff_addr,
-			(uint8_t *)buff_addr+strlen(buff_addr)+1);
+			(uint8_t *)buff_addr+buff_size);
 
 	if(fd == 1)
 	{
@@ -597,7 +597,7 @@ static void sys_write(struct intr_frame *f)
 
 	//unpin the buffer frame
 	frame_unpin(thread_current()->pagedir, (uint8_t *)buff_addr,
-			(uint8_t *)buff_addr+strlen(buff_addr)+1);
+			(uint8_t *)buff_addr+buff_size);
 }
 
 
