@@ -83,6 +83,7 @@ struct supp_entry
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
 	bool writable;
+	bool pin;
 	//tmp hack until mmap implementation
 
 	/*use this in conjunction with a list

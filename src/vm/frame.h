@@ -73,7 +73,8 @@ void frame_clear_map(uint32_t *kpage);
 void frame_table_init (struct frame_info *f_table, uint32_t count);
 uint32_t frame_get_flags(uintptr_t *kpage);
 void frame_set_flags(uintptr_t *kpage, uint32_t nflags);
-
+void frame_pin(uint32_t *pd, uint8_t *start_page, uint8_t *end_page);
+void frame_unpin(uint32_t *pd, uint8_t *start_page, uint8_t *end_page);
 
 /*
  * get the information for frame located at kernel virtual address

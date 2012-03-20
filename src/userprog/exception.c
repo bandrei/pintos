@@ -207,7 +207,10 @@ static void page_fault(struct intr_frame *f) {
 						exe_map->page_offset);
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
+
+
 				lock_release(&frame_lock);
+
 			}
 			else if (tmp_entry->cur_type == SWAP)
 			{
@@ -228,6 +231,11 @@ static void page_fault(struct intr_frame *f) {
 				}
 				swap_in(swap_table, swap_slot, upage);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
+
+				/* pin the frame if necessary */
+				if(tmp_entry->pin)
+					frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
+
 				lock_release(&frame_lock);
 
 

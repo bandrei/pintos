@@ -3,7 +3,9 @@
 #include "vm/frame.h"
 #include "threads/loader.h"
 #include "threads/vaddr.h"
+#include "threads/pte.h"
 #include "vm/page.h"
+#include "userprog/pagedir.h"
 
 struct frame_info *frame_table;
 struct lock frame_lock;
@@ -60,6 +62,7 @@ void frame_clear_map(uint32_t *kpage)
 	//printf("\n S_ENTRY TYPE: %x\n",frame_table[FRAME_INDEX(kpage)].prev_supp_flag);
 
 	list_remove(&frame_table[FRAME_INDEX(kpage)].frame_elem);
+	frame_table[FRAME_INDEX(kpage)].s_entry->pin = false;
 	frame_table[FRAME_INDEX(kpage)].s_entry=NULL;
     frame_table[FRAME_INDEX(kpage)].flags=0;
 
@@ -99,3 +102,90 @@ frame_table_init(struct frame_info *f_table, uint32_t count)
 	}
 
 }
+
+/*
+void frame_pin(uint32_t *pd, uint8_t *upage, size_t pages)
+{
+
+	uint32_t *pte;
+	size_t set_pages = 0;
+	lock_acquire(&frame_lock);
+	while(set_pages<pages)
+	{
+		pte = lookup_page(pd,upage,false);
+		if(*pte!=0)
+		{
+			if((*pte & PTE_P) != 0)
+			{
+			//page is in frame
+				frame_table[FRAME_INDEX(pte_get_page (*pte))].flags |= FRAME_STICKY;
+
+			}
+			else
+			{
+			//page is not in frame so update supp_entry
+				((struct supp_entry *)pagedir_get_ptr(pd,upage))->pin=true;
+
+			}
+		}
+		set_pages++;
+		upage += PGSIZE;
+	}
+	lock_release(&frame_lock);
+}*/
+
+void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
+{
+	uint32_t *pte;
+	uint8_t *round_start = pg_round_down(start_upage);
+	//size_t pages = (end_page-start_page/PGSIZE
+	lock_acquire(&frame_lock);
+	while(round_start <= pg_round_down(end_page))
+	{
+		pte = lookup_page(pd,round_start,false);
+		if(*pte!=0)
+		{
+			if((*pte & PTE_P) != 0)
+			{
+			//page is in frame
+				frame_table[FRAME_INDEX(pte_get_page (*pte))].flags |= FRAME_STICKY;
+
+			}
+			else
+			{
+			//page is not in frame so update supp_entry
+				((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=true;
+			}
+		}
+		round_start += PGSIZE;
+	}
+	lock_release(&frame_lock);
+}
+
+void frame_unpin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
+{
+	uint32_t *pte;
+	uint8_t *round_start = pg_round_down(start_upage);
+	//size_t pages = (end_page-start_page/PGSIZE
+	lock_acquire(&frame_lock);
+	while(round_start <= pg_round_down(end_page))
+	{
+		pte = lookup_page(pd,round_start,false);
+		if(*pte!=0)
+		{
+			if((*pte & PTE_P) != 0)
+			{
+			//page is in frame
+				frame_table[FRAME_INDEX(pte_get_page (*pte))].flags &= (~FRAME_STICKY);
+			}
+			else
+			{
+			//page is not in frame so update supp_entry
+			((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=false;
+			}
+		}
+		round_start += PGSIZE;
+	}
+	lock_release(&frame_lock);
+}
+

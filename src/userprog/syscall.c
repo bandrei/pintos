@@ -9,6 +9,7 @@
 #include "filesys/file.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt(struct intr_frame*);
@@ -324,9 +325,12 @@ static void sys_create(struct intr_frame *f)
 	tmp_esp++; //get the file size required for creation
 	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	POINTER_CHECK(file_addr,0);
+
+
 	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
 		f->eax = false; //file creation failed
 	else f->eax = true; //file creation successful
+
 }
 
 static void sys_remove(struct intr_frame *f)
@@ -337,9 +341,12 @@ static void sys_remove(struct intr_frame *f)
 	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *file_addr = *tmp_esp;
 	POINTER_CHECK(file_addr,0);
+
+
 	if(!filesys_remove(file_addr))
 		f->eax = false; //file remove failed
 	else f->eax = true; //file remove successful
+
 }
 
 static void sys_open(struct intr_frame *f)
@@ -348,12 +355,17 @@ static void sys_open(struct intr_frame *f)
 	int *tmp_esp = f->esp;
 	tmp_esp++;
 	POINTER_CHECK(tmp_esp,sizeof(unsigned));
+
 	char *file_addr = *tmp_esp;
 	tmp_esp++; //get the file size required for creation
 	POINTER_CHECK(file_addr,0);
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
-
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
 
 	acquire_file_lock();
 
@@ -369,6 +381,13 @@ static void sys_open(struct intr_frame *f)
 
 	release_file_lock();
 
+	//unpin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
+
+	//unpin the args frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 }
 
 static void sys_filesize(struct intr_frame *f)
@@ -380,6 +399,7 @@ static void sys_filesize(struct intr_frame *f)
 	struct list_elem *it;
 	f->eax = -1;
 	//acquire file lock and perform operations
+
 	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
@@ -393,6 +413,7 @@ static void sys_filesize(struct intr_frame *f)
 		}
 	}
 	release_file_lock();
+
 }
 
 static void sys_read(struct intr_frame *f)
@@ -412,6 +433,8 @@ static void sys_read(struct intr_frame *f)
     unsigned int buff_size = *tmp_esp;
 	struct file *fi = NULL;
 	struct list_elem *it;
+
+
 	//acquire file lock and perform operations
 	acquire_file_lock();
 	if(fd==0)
@@ -442,6 +465,7 @@ static void sys_read(struct intr_frame *f)
 
 	release_file_lock();
 
+
 }
 
 
@@ -462,6 +486,13 @@ static void sys_write(struct intr_frame *f)
     POINTER_CHECK(tmp_esp,sizeof(unsigned));
     //split the buffer here if above 300 bytes probably
     unsigned int buff_size = *tmp_esp;
+
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)buff_addr,
+			(uint8_t *)buff_addr+strlen(buff_addr)+1);
 
 	if(fd == 1)
 	{
@@ -495,13 +526,23 @@ static void sys_write(struct intr_frame *f)
 			release_file_lock();
 		}
 	}
+
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//unpin the buffer frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)buff_addr,
+			(uint8_t *)buff_addr+strlen(buff_addr)+1);
 }
+
 
 static void sys_seek(struct intr_frame *f)
 {
 
 	int *tmp_esp = f->esp;
 	tmp_esp++;
+
+	//frame_pin(thread_current()->pagedir, tmp_esp,1);
 	POINTER_CHECK(tmp_esp,sizeof(int));
 	int fd = *tmp_esp;
 	tmp_esp++;
@@ -510,6 +551,11 @@ static void sys_seek(struct intr_frame *f)
 	struct file *fi;
 	struct list_elem *it;
 	//acquire file lock and perform operations
+
+	//TODO: frame_pin check if need to pin 2 frames
+	//if the arguments are transitioning or only one
+	//frame_pin(thread_current()->pagedir, f->esp,1);
+
 	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
@@ -522,8 +568,8 @@ static void sys_seek(struct intr_frame *f)
 				break;
 		}
 	}
-
 	release_file_lock();
+	//frame_unpin(thread_current()->pagedir, tmp_esp,1);
 }
 
 static void sys_tell(struct intr_frame *f)

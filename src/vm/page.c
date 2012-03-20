@@ -17,6 +17,7 @@ void init_supp_entry(struct supp_entry *s_entry)
 	s_entry->cur_type = RAM;
 	s_entry->init_type = RAM;
 	s_entry->writable = true;
+	s_entry->pin = false;
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
 	//put the s_entry at the head of the list
 }
@@ -51,6 +52,7 @@ bool paging_get_free_frame()
       return (slot * PGSIZE);
   }*/
   // POST: no free frames
+
   return paging_eviction() > 0;
 }
 
