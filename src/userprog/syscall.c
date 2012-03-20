@@ -291,6 +291,9 @@ static void sys_exit(struct intr_frame *f)
 	tmp_esp++;
 	POINTER_CHECK(tmp_esp, sizeof(int));
 	f->eax = *tmp_esp;
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 	_sys_exit(*tmp_esp,true);
 }
 
@@ -302,8 +305,23 @@ static void sys_exec(struct intr_frame *f)
 	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	char *buff_addr = *tmp_esp;
     POINTER_CHECK(buff_addr,0);
+
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)buff_addr,
+			(uint8_t *)buff_addr+strlen(buff_addr)+1);
+
 	tid_t pid = process_execute(buff_addr);
 	f->eax = pid;
+
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//unpin the buffer frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)buff_addr,
+			(uint8_t *)buff_addr+strlen(buff_addr)+1);
 }
 
 static void sys_wait(struct intr_frame *f)
@@ -311,7 +329,12 @@ static void sys_wait(struct intr_frame *f)
 	int *tmp_esp = f->esp;
 	tmp_esp++;
 	POINTER_CHECK(tmp_esp,sizeof(int));
+
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 	f->eax=process_wait(*tmp_esp);
+
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
 }
 
@@ -326,11 +349,23 @@ static void sys_create(struct intr_frame *f)
 	POINTER_CHECK(tmp_esp,sizeof(unsigned));
 	POINTER_CHECK(file_addr,0);
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
 
 	if(!filesys_create(file_addr,*((unsigned *)tmp_esp)))
 		f->eax = false; //file creation failed
 	else f->eax = true; //file creation successful
 
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//unpin the buffer frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
 }
 
 static void sys_remove(struct intr_frame *f)
@@ -342,10 +377,23 @@ static void sys_remove(struct intr_frame *f)
 	char *file_addr = *tmp_esp;
 	POINTER_CHECK(file_addr,0);
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
 
 	if(!filesys_remove(file_addr))
 		f->eax = false; //file remove failed
 	else f->eax = true; //file remove successful
+
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//unpin the buffer frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)file_addr,
+			(uint8_t *)file_addr+strlen(file_addr)+1);
 
 }
 
@@ -400,6 +448,9 @@ static void sys_filesize(struct intr_frame *f)
 	f->eax = -1;
 	//acquire file lock and perform operations
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
@@ -413,6 +464,8 @@ static void sys_filesize(struct intr_frame *f)
 		}
 	}
 	release_file_lock();
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
 }
 
@@ -434,6 +487,12 @@ static void sys_read(struct intr_frame *f)
 	struct file *fi = NULL;
 	struct list_elem *it;
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//pin the buffer frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)buff_addr,
+				(uint8_t *)buff_addr+strlen(buff_addr)+1);
 
 	//acquire file lock and perform operations
 	acquire_file_lock();
@@ -464,6 +523,12 @@ static void sys_read(struct intr_frame *f)
 	}
 
 	release_file_lock();
+	//unpin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	//unpin the buffer frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)buff_addr,
+				(uint8_t *)buff_addr+strlen(buff_addr)+1);
 
 
 }
@@ -556,6 +621,9 @@ static void sys_seek(struct intr_frame *f)
 	//if the arguments are transitioning or only one
 	//frame_pin(thread_current()->pagedir, f->esp,1);
 
+	//pin the argument frame
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
@@ -570,6 +638,9 @@ static void sys_seek(struct intr_frame *f)
 	}
 	release_file_lock();
 	//frame_unpin(thread_current()->pagedir, tmp_esp,1);
+	//pin the argument frame
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 }
 
 static void sys_tell(struct intr_frame *f)
@@ -581,6 +652,8 @@ static void sys_tell(struct intr_frame *f)
 	f->eax = -1;
 	struct file *fi;
 	struct list_elem *it;
+
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 		//acquire file lock and perform operations
 	acquire_file_lock();
     for(it = list_begin(&thread_current()->files_opened);
@@ -595,6 +668,9 @@ static void sys_tell(struct intr_frame *f)
 		}
 	}
 	release_file_lock();
+
+	//unpin argument frame/s
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 }
 
 static void sys_close(struct intr_frame *f)
@@ -606,6 +682,7 @@ static void sys_close(struct intr_frame *f)
 	struct file *fi;
 	struct list_elem *it;
 	//acquire file lock and perform operations
+	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 	acquire_file_lock();
 	for(it = list_begin(&thread_current()->files_opened);
 			it != list_end(&thread_current()->files_opened);
@@ -620,6 +697,7 @@ static void sys_close(struct intr_frame *f)
 		}
 	}
 	release_file_lock();
+	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 }
 
 
