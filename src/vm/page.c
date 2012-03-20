@@ -41,7 +41,7 @@ void swap_init()
   swap_table = swap_create(swap_disk);
 }
 
-uintptr_t paging_get_free_frame()
+bool paging_get_free_frame()
 {
   ASSERT(frame_table != NULL);
   /*uint32_t slot = 0;
@@ -51,7 +51,7 @@ uintptr_t paging_get_free_frame()
       return (slot * PGSIZE);
   }*/
   // POST: no free frames
-  return paging_eviction();
+  return paging_eviction() > 0;
 }
 
 /**
@@ -86,7 +86,7 @@ void paging_evict(uintptr_t kpagev)
   
   // Update the supp_entry:
  if (ksup->cur_type==RAM)
-  {
+ {
 	 //if(ksup->init_type == EXE)
 		// printf("evicting exe\n");
 	 //if(ksup->cur_type == EXE)
@@ -109,8 +109,8 @@ void paging_evict(uintptr_t kpagev)
 		if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
 		{
 			ksup->cur_type = SWAP;
-			 swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
-			 pagedir_set_dirty(kframe->pd,kframe->upage,false);
+			swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+			pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		    ksup->table_ptr= swapslot;
 		}
 		// ksup->table_ptr = kframe;
@@ -119,13 +119,13 @@ void paging_evict(uintptr_t kpagev)
 	  frame_clear_map((uint32_t *) kpage);
 	  palloc_free_page(kpage);
 
-  }
-  else
-  {
+}
+else
+{
 
 	  printf("frame index %d\n",FRAME_INDEX(kpage));
 	  printf("what the hell is this? %x %x\n",ksup->cur_type, ksup->init_type);
-  }
+}
   
   
 }
@@ -143,14 +143,48 @@ uintptr_t paging_eviction()
   
   uint32_t slot = 0;
   uint32_t free_slot = user_max_pages;
-  int evict_once = 0;
+  uint32_t evict_once = 0;
 
   //iterate throught the FIFO frame list
 
-  /*struct list_elem *it;
+  struct list_elem *it;
+  struct list_elem *it_end = list_end(&frame_list);
   struct frame_info *fi;
 
-  for(it=list_begin(&frame_list); it!=list_end(&frame_list);
+ // printf("is slot %d\n",(frame_table+1) - frame_table );
+ it = list_begin(&frame_list);
+ while(it!=it_end)
+  {
+
+
+	  fi=list_entry(it,struct frame_info, frame_elem);
+	  it = fi->frame_elem.next;
+	  if(fi->s_entry!=NULL && ((fi->flags & FRAME_STICKY) == 0))
+	  {
+	  	  if(fi->flags & FRAME_SECOND_CHANCE)
+	  	  {
+	  		  free_slot = fi-frame_table;
+  			  paging_evict(FRAME_VADDR((free_slot)));
+  			  if(evict_once == 4)
+	      			break;
+		      evict_once++;
+
+	  	  }
+	  	 else
+	  	 {
+	  		 list_remove(&fi->frame_elem);
+	  		 fi->flags = (fi->flags | FRAME_SECOND_CHANCE);
+	  		 list_push_back(&frame_list, &fi->frame_elem);
+
+	  	  }
+	  }
+
+
+
+  }
+
+
+ /* for(it=list_begin(&frame_list); it!=list_end(&frame_list);
 		  it=list_next(it))
   {
 	  fi=list_entry(it,struct frame_info, frame_elem);
@@ -158,11 +192,24 @@ uintptr_t paging_eviction()
 	  {
 		  if(fi->flags & FRAME_SECOND_CHANCE)
 		  {
+			  free_slot = fi-frame_table;
+			 // list_remove(&fi->frame_elem);
+			  paging_evict(FRAME_VADDR((slot)));
+			  if(evict_once == 4)
+			      			break;
+			  evict_once++;
+
+		  }
+		  else
+		  {
+			  fi->flags = (fi->flags | FRAME_SECOND_CHANCE);
+			  list_remove(&fi->frame_elem);
+			  list_push_back(&frame_list, &fi->frame_elem);
 
 		  }
 	  }
   }*/
-
+ /*
   for (; slot < user_max_pages; slot++ )
   {
     
@@ -183,10 +230,10 @@ uintptr_t paging_eviction()
    		frame_table[slot].flags = (frame_table[slot].flags | FRAME_SECOND_CHANCE);
     	}
     }
-  }
+  }*/
   
  // if (free_slot < user_max_pages)
-    return FRAME_VADDR(free_slot);
+    return evict_once;
  // else
   //  PANIC ("Eviction couldn't evict any frames");
 }

@@ -119,7 +119,8 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 		//we could have several pages allocated
 		//TODO: call eviction algorithm
 
-		paging_get_free_frame();
+		if(!paging_get_free_frame())
+			paging_get_free_frame();
 		evicted = true;
 		//retry the operation after eviction if successful
 		if(evicted)

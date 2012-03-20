@@ -229,7 +229,6 @@ static void page_fault(struct intr_frame *f) {
 				swap_in(swap_table, swap_slot, upage);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
 				lock_release(&frame_lock);
-				//free the swap slot after swap in
 
 
 			}

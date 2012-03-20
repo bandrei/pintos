@@ -98,7 +98,7 @@ void supp_set_table_ptr(struct supp_entry *s_entry, void *address);
 void supp_clear_table_ptr(struct supp_entry *s_entry);
 
 void swap_init(void);
-uintptr_t paging_get_free_frame(void);
+bool paging_get_free_frame(void);
 
 
 void paging_evict(uintptr_t kpage);
