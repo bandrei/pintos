@@ -85,7 +85,6 @@ _sys_exit (int status, bool msg_print)
 {
 
 	struct thread *cur = thread_current();
-	printf(">> SYS_EXIT %x\n", cur->tid);
 
 	bool parent_waiting = false;
 	struct semaphore *parent_sema;
@@ -186,64 +185,26 @@ _sys_exit (int status, bool msg_print)
 	}
 
 
-	struct supp_entry *supp_tmp;
-		//printf("WE RELEASE RESOURCES \n");
-	printf("It must be the exit lock!\n");
+   struct supp_entry *supp_tmp;
    it=list_begin(&cur->supp_list);
 
+   lock_acquire(&frame_lock);
+   lock_acquire(&file_lock);
    for (it = list_begin(&cur->supp_list); it != list_end(&cur->supp_list); )
    {
 
-
-	   	   printf("element: %x\n",it);
-
-
 			supp_tmp = list_entry(it,struct supp_entry, supp_elem);
-			printf("supp_entry %x\n",supp_tmp);
 			itnext = list_next(it);
-			printf("next %x\n",itnext);
 
-			//it = supp_tmp->supp_elem.next;
-			//printf("next elem location %x \n",it);
 		    supp_clear_table_ptr(supp_tmp);
-		    //printf("fail in remove?\n");
 		    list_remove(it);
-		    //printf("remove succeeded\n");
-		    printf("%x supp_elem %x %x\n", cur->tid, supp_tmp->cur_type, supp_tmp->writable);
-
-
-
-		    //supp_tmp->supp_elem.next=supp_tmp->supp_elem.prev=NULL;
-
-		    printf("free %x\n",supp_tmp);
 
 		    free(supp_tmp);
-
-			printf("%x free succeeded \n",cur->tid);
-
 			it = itnext;
 	}
-
-	//deallocate all our page table information (i.e. supp_entry,
-	//file_entry, etc).
-	//int call= 0;
-
-	//printf("WE DIDN'T FAIL resource releasing\n");
-	/*while(supp_table != NULL)
-	{
-
-		call++;
-		supp_clear_table_ptr(supp_table);
-		//printf("supp_entry %x %x\n\n", supp_table, supp_table->cur_type);
-		//printf("our table entry %x\n\n", supp_table->table_ptr);
-		supp_prev = supp_table;
-		supp_table = supp_table->next;
-
-		free(supp_prev);
-
-	}*/
-   printf("It must potato the exit lock!\n");
-	thread_exit();
+   lock_release(&file_lock);
+   lock_release(&frame_lock);
+   thread_exit();
 }
 
 void
@@ -256,6 +217,7 @@ static void
 syscall_handler (struct intr_frame *f)
 {
 
+	printf("sys call id: %x\n",*(uint32_t*)f->esp);
   //get system call number and call appropriate function
 	thread_current()->stack_save_sys = f->esp;
   //need to do checks here
@@ -535,6 +497,7 @@ static void sys_read(struct intr_frame *f)
 	struct file *fi = NULL;
 	struct list_elem *it;
 
+	printf("Address of buff %x %x \n", pg_round_down(buff_addr), pg_round_down(buff_addr+buff_size));
 	//pin the argument frame
 	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
@@ -800,11 +763,11 @@ static void sys_mmap(struct intr_frame *f)
 
 	//mmap the newly created file if successful add it to our list
 	//of opened files
-	if(fi!=NULL)
+	if(mmap_file!=NULL)
 		if(map_file(thread_current()->pagedir, mmap_file))
 		{
 			list_push_back(&thread_current()->files_mapped, &mmap_file->file_elem);
-			f->eax = fi->fd;
+			f->eax = mmap_file->fd;
 		}
 		else
 			file_close(mmap_file);

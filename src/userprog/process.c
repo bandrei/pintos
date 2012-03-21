@@ -600,6 +600,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  //TODO: fill in this area with the creation
       	  //the page fault handler will create zero filled pages anyway
       	  //therefore no need to fill the pages here;
+      	  lock_acquire(&frame_lock);
       	  s_table_entry = malloc(sizeof(*s_table_entry));
       	  init_supp_entry(s_table_entry);
 
@@ -624,6 +625,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       	  if(upage >= thread_current()->stack_bottom) _sys_exit(-1,true);
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);
+      	  lock_release(&frame_lock);
 
       	  (page_read_bytes+file->pos >= file_length(file)) ? file_seek(file,file_length(file)-1) : file_seek(file,file->pos+page_read_bytes);
       	  read_bytes -= page_read_bytes;
@@ -647,8 +649,6 @@ setup_stack (void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-	  printf("MARIUS setup_stack %x\n", thread_current()->tid);
-	  printf("We are setting the pagedir in INSTALL pages\n");
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {

@@ -820,7 +820,7 @@ init_thread (struct thread *t, const char *name, int priority)
   
   t->try_lock = NULL;
   t->our_file = NULL;
-  t->locked_on_file = NULL;
+  t->locked_on_file = false;
   list_init(&t->lock_list); //lock_list used for donation
   list_init(&t->children);
   list_init(&t->children_info);
