@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "vm/swap.h"
 #include "vm/frame.h"
+#include "vm/mmap.h"
+#include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
@@ -18,7 +20,10 @@ void init_supp_entry(struct supp_entry *s_entry)
 	s_entry->init_type = RAM;
 	s_entry->writable = true;
 	s_entry->pin = false;
+   //printf("supp entry addr: %x\n",s_entry);
+	printf("It must be the supp lock!\n");
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
+	printf("It must potato the supp lock!\n");
 	//put the s_entry at the head of the list
 }
 /*
@@ -117,10 +122,22 @@ void paging_evict(uintptr_t kpagev)
 		}
 		// ksup->table_ptr = kframe;
 	 }
+	 else if(ksup->init_type == FILE)
+	 {
+		 ksup->cur_type = ksup->init_type;
+		 if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
+		 {
+			 ksup->cur_type = FILE;
+			 struct mmap_entry *tmp_file = (struct mmap_entry *)ksup->table_ptr;
+			 struct file *f = tmp_file->file_ptr;
+			 file_seek(f, tmp_file->page_offset);
+			 file_write(f,kframe->upage, PGSIZE);
+			 pagedir_set_dirty(kframe->pd,kframe->upage,false);
+		 }
+	 }
 	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
 	  frame_clear_map((uint32_t *) kpage);
 	  palloc_free_page(kpage);
-
 }
 else
 {
@@ -320,14 +337,14 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 		//frame_clear_map(s_entry->table_ptr);
 		//palloc_free_page(s_entry->table_ptr);
 	}
-	else if(s_entry->cur_type == EXE)
+	else if(s_entry->init_type == EXE)
 	{
 	//	lock_acquire(&frame_lock);
      	free(s_entry->table_ptr);
 	}
 	else if(s_entry->cur_type == FILE)
 	{
-		free(s_entry->table_ptr);
+		//free(s_entry->table_ptr);
 	}
 	  /*switch(s_entry->init_type)
 	  {

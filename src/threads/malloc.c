@@ -92,7 +92,6 @@ malloc (size_t size)
   struct desc *d;
   struct block *b;
   struct arena *a;
-
   /* A null pointer satisfies a request for 0 bytes. */
   if (size == 0)
     return NULL;

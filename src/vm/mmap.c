@@ -27,7 +27,6 @@ bool map_file(uint32_t *pd,struct file *fi)
 		}
 		start_address += PGSIZE;
 	}
-
 	//create supplemental entries and table entries for each mapping
 	start_address = (uint8_t*)fi->address;
 	struct supp_entry *supp_map;
@@ -37,14 +36,17 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 		//TODO: Do memory checks on malloc
 		supp_map = malloc(sizeof(*supp_map));
+  	  printf("are we failing here in mmap ???\n");
 		init_supp_entry(supp_map);
 
 		mmap_file= malloc(sizeof(*mmap_file));
+		mmap_file->file_ptr = fi;
 		mmap_file->page_offset = start_address-(uint8_t *)fi->address;
 
 		supp_map->init_type = FILE;
 		supp_map->cur_type = FILE;
 		supp_map->table_ptr = mmap_file;
+		supp_map->writable = true;
 
 		pagedir_set_ptr(pd,start_address,supp_map);
 		start_address += PGSIZE;
@@ -53,6 +55,7 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 	return true;
 }
+/*
 void unmap_file(uint32_t *pd, struct file *fi)
 {
 
@@ -88,11 +91,14 @@ void unmap_file(uint32_t *pd, struct file *fi)
 		else
 		{
 			//clear the supp_entry the frame is pointing to
-			f_inf = frame_get_map(pagedir_get_page(pd,start_address));
+			uint32_t *kpage = pagedir_get_page(pd,start_address);
+			f_inf = frame_get_map(kpage);
 			start_delete = f_inf->s_entry;
 			list_remove(&start_delete->supp_elem);
 			supp_clear_table_ptr(start_delete);
 			free(start_delete);
+			palloc_free_page(kpage);
+			frame_clear_map(kpage);
 			*pte = 0;
 		}
 
@@ -102,4 +108,4 @@ void unmap_file(uint32_t *pd, struct file *fi)
 
 
 	lock_release(&frame_lock);
-}
+}*/

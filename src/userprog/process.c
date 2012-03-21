@@ -647,6 +647,8 @@ setup_stack (void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
+	  printf("MARIUS setup_stack %x\n", thread_current()->tid);
+	  printf("We are setting the pagedir in INSTALL pages\n");
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {

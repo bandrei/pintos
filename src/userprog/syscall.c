@@ -83,13 +83,17 @@ static void release_file_lock(void)
 void
 _sys_exit (int status, bool msg_print)
 {
+
 	struct thread *cur = thread_current();
+	printf(">> SYS_EXIT %x\n", cur->tid);
+
 	bool parent_waiting = false;
 	struct semaphore *parent_sema;
 	enum intr_level old_level = intr_disable();
 	//let the children know that we are dying
 	struct thread *child;
 	struct list_elem *it;
+	struct list_elem *itnext;
 	for(it=list_begin(&cur->children);it!=list_end(&cur->children);
 			it=list_next(it))
 	{
@@ -121,7 +125,6 @@ _sys_exit (int status, bool msg_print)
 		file->file_elem.prev =file->file_elem.next = NULL;
 		file_close(file);
 	}
-
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -159,6 +162,10 @@ _sys_exit (int status, bool msg_print)
 					//needs to be set here or not (probably not)
 					file_close(cur->our_file);
 	}
+
+
+
+
 	intr_set_level(old_level);
 
 	if(msg_print)
@@ -178,24 +185,50 @@ _sys_exit (int status, bool msg_print)
 		sema_up(parent_sema);
 	}
 
+
+	struct supp_entry *supp_tmp;
+		//printf("WE RELEASE RESOURCES \n");
+	printf("It must be the exit lock!\n");
+   it=list_begin(&cur->supp_list);
+
+   for (it = list_begin(&cur->supp_list); it != list_end(&cur->supp_list); )
+   {
+
+
+	   	   printf("element: %x\n",it);
+
+
+			supp_tmp = list_entry(it,struct supp_entry, supp_elem);
+			printf("supp_entry %x\n",supp_tmp);
+			itnext = list_next(it);
+			printf("next %x\n",itnext);
+
+			//it = supp_tmp->supp_elem.next;
+			//printf("next elem location %x \n",it);
+		    supp_clear_table_ptr(supp_tmp);
+		    //printf("fail in remove?\n");
+		    list_remove(it);
+		    //printf("remove succeeded\n");
+		    printf("%x supp_elem %x %x\n", cur->tid, supp_tmp->cur_type, supp_tmp->writable);
+
+
+
+		    //supp_tmp->supp_elem.next=supp_tmp->supp_elem.prev=NULL;
+
+		    printf("free %x\n",supp_tmp);
+
+		    free(supp_tmp);
+
+			printf("%x free succeeded \n",cur->tid);
+
+			it = itnext;
+	}
+
 	//deallocate all our page table information (i.e. supp_entry,
 	//file_entry, etc).
 	//int call= 0;
-	struct supp_entry *supp_tmp;
-	lock_acquire(&frame_lock);
 
-	it=list_begin(&cur->supp_list);
-	while(it!=list_end(&cur->supp_list))
-	{
-
-		supp_tmp = list_entry(it,struct supp_entry, supp_elem);
-		it = supp_tmp->supp_elem.next;
-	    supp_clear_table_ptr(supp_tmp);
-	    list_remove(&supp_tmp->supp_elem);
-	    supp_tmp->supp_elem.next=supp_tmp->supp_elem.prev=NULL;
-		free(supp_tmp);
-	}
-
+	//printf("WE DIDN'T FAIL resource releasing\n");
 	/*while(supp_table != NULL)
 	{
 
@@ -209,7 +242,7 @@ _sys_exit (int status, bool msg_print)
 		free(supp_prev);
 
 	}*/
-	lock_release(&frame_lock);
+   printf("It must potato the exit lock!\n");
 	thread_exit();
 }
 
@@ -281,12 +314,12 @@ syscall_handler (struct intr_frame *f)
 	  /* Close a file. */
 	  sys_close(f);
 	  break;
-  /*case SYS_MMAP:
+  case SYS_MMAP:
 	  sys_mmap(f);
 	  break;
   case SYS_MUNMAP:
-	  sys_munmap(f);
-	  break;*/
+//	/  sys_munmap(f);
+	  break;
   default: _sys_exit(-1,true); break;
   }
 
@@ -760,7 +793,7 @@ static void sys_mmap(struct intr_frame *f)
 			mmap_file = file_reopen(fi);
 			mmap_file->fd = list_size(&thread_current()->files_mapped)+2;
 			mmap_file->is_mmaped = true;
-			mmap_file->address = NULL;
+			mmap_file->address = address;
 			break;
 		}
 	}
@@ -785,6 +818,7 @@ static void sys_mmap(struct intr_frame *f)
 static void sys_munmap(struct intr_frame *f)
 {
 
+	printf("ARE WE CALLED?\n");
 }
 
 
