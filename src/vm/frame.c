@@ -76,6 +76,35 @@ frame_get_map(uint32_t *kpage)
 	return &frame_table[FRAME_INDEX(kpage)];
 }
 
+
+inline void frame_set_flag(uint32_t *kpage, uint32_t flag)
+{
+  ASSERT(is_kernel_vaddr(kpage));
+  
+  /* This is equivalent to `frame_table[FRAME_INDEX(kpage)] |= flag' except that it
+     is guaranteed to be atomic on a uniprocessor machine.  See
+     the description of the OR instruction in [IA32-v2b]. */
+  asm ("orl %1, %0" : "=m" (frame_table[FRAME_INDEX(kpage)]) : "r" (flag) : "cc");
+}
+
+inline void frame_unset_flag(uint32_t *kpage, uint32_t flag)
+{
+  ASSERT(is_kernel_vaddr(kpage));
+  
+  /* This is equivalent to `frame_table[FRAME_INDEX(kpage)] &= ~flag' except that it
+     is guaranteed to be atomic on a uniprocessor machine.  See
+     the description of the AND instruction in [IA32-v2a]. */
+  asm ("andl %1, %0" : "=m" (frame_table[FRAME_INDEX(kpage)]) : "r" (~flag) : "cc");
+}
+
+inline void page_trigger_fault(uint32_t *upage)
+{
+  
+  asm ("movl %%eax, %0" : /* no outputs */ : "m" (upage) : "eax" );
+}
+
+
+/*
 uint32_t frame_get_flags(uintptr_t *kpage)
 {
     ASSERT(is_kernel_vaddr(kpage));
@@ -87,6 +116,7 @@ void frame_set_flags(uintptr_t *kpage, uint32_t nflags)
     ASSERT(is_kernel_vaddr(kpage));
     frame_table[FRAME_INDEX(kpage)].flags = nflags;
 }
+*/
 
 void
 frame_table_init(struct frame_info *f_table, uint32_t count)

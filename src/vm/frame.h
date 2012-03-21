@@ -71,8 +71,12 @@ struct frame_info
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage);
 void frame_clear_map(uint32_t *kpage);
 void frame_table_init (struct frame_info *f_table, uint32_t count);
-uint32_t frame_get_flags(uintptr_t *kpage);
-void frame_set_flags(uintptr_t *kpage, uint32_t nflags);
+//uint32_t frame_get_flags(uintptr_t *kpage);
+//void frame_set_flags(uintptr_t *kpage, uint32_t nflags);
+inline void frame_set_flag(uint32_t *kpage, uint32_t flag);
+inline void frame_unset_flag(uint32_t *kpage, uint32_t flag);
+inline void page_trigger_fault(uint32_t *upage);
+
 void frame_pin(uint32_t *pd, uint8_t *start_page, uint8_t *end_page);
 void frame_unpin(uint32_t *pd, uint8_t *start_page, uint8_t *end_page);
 
