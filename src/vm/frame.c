@@ -138,7 +138,8 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 {
 	uint32_t *pte;
 	uint8_t *round_start = pg_round_down(start_upage);
-	uint8_t force_frame;
+	uint8_t force_frame = 0;
+	char a;
 	//size_t pages = (end_page-start_page/PGSIZE
 
 	while(round_start <= pg_round_down(end_page))
@@ -167,16 +168,12 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 				//bring page into memory
 
 				force_frame = *round_start;
-				if(force_frame==5)
-				{
 
-				}
 
 			}
 		}
 		round_start += PGSIZE;
 	}
-
 }
 
 void frame_unpin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
