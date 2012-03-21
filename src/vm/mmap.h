@@ -2,6 +2,7 @@
 #define MMAP_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 
 struct mmap_entry
@@ -17,13 +18,16 @@ struct mmap_entry
 	 */
 	struct file *file_ptr;
 
-	/* To be used for keeping record of what the page offset
-	 * is relative to the start of the file.
+	/* use this to locate the frame in which the file currently
+	 * resides
 	 *
 	 * In the special case of the exe (elf) mappings it will
 	 * be used to store the number of bytes to be read
 	 */
 	uint32_t page_offset;
 };
+
+bool map_file(uint32_t *pd, struct file *fi);
+void unmap_file(uint32_t *pd, struct file *fi);
 
 #endif

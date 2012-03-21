@@ -138,6 +138,7 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 {
 	uint32_t *pte;
 	uint8_t *round_start = pg_round_down(start_upage);
+	uint8_t force_frame;
 	//size_t pages = (end_page-start_page/PGSIZE
 	lock_acquire(&frame_lock);
 	while(round_start <= pg_round_down(end_page))
@@ -155,6 +156,9 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 			{
 			//page is not in frame so update supp_entry
 				((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=true;
+
+				//bring page into memory
+				force_frame = *round_start;
 			}
 		}
 		round_start += PGSIZE;

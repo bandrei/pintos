@@ -14,6 +14,9 @@ struct file
     int fd; 				//file descriptor
     struct list_elem file_elem;
     bool deny_write;            /* Has file_deny_write() been called? */
+    bool is_mmaped;
+    void *address;
+    void *supp_entry;
   };
 
 /* Opening and closing files. */

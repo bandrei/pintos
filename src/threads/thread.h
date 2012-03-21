@@ -129,6 +129,7 @@ struct thread
     /* Files queue*/
     struct file *our_file; //our executable file to be closed when we die
     struct list files_opened;//all of our opened files
+    struct list files_mapped;
     bool locked_on_file;//used when operating on files
 
     /* BSD */
@@ -143,6 +144,8 @@ struct thread
     struct list supp_list;
     uint8_t *stack_bottom;
     uint8_t *stack_save_sys;
+
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

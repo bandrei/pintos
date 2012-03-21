@@ -1,15 +1,20 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #include "lib/kernel/console.h"
 #include "filesys/file.h"
+#include "filesys/filesys.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/mmap.h"
 #include "userprog/pagedir.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt(struct intr_frame*);
@@ -25,6 +30,8 @@ static void sys_write(struct intr_frame*);
 static void sys_seek(struct intr_frame*);
 static void sys_tell(struct intr_frame*);
 static void sys_close(struct intr_frame*);
+static void sys_mmap(struct intr_frame*);
+static void sys_munmap(struct intr_frame*);
 
 
 //check that the whole size of the buffer (tmp_esp) is in
@@ -59,13 +66,13 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 	}
 }
 
-static void acquire_file_lock()
+static void acquire_file_lock(void)
 {
 	lock_acquire(&file_lock);
 	thread_current()->locked_on_file = true;
 }
 
-static void release_file_lock()
+static void release_file_lock(void)
 {
 	lock_release(&file_lock);
 	thread_current()->locked_on_file= false;
@@ -173,8 +180,7 @@ _sys_exit (int status, bool msg_print)
 
 	//deallocate all our page table information (i.e. supp_entry,
 	//file_entry, etc).
-	int call= 0;
-	struct supp_entry *supp_table = cur->supp_table;
+	//int call= 0;
 	struct supp_entry *supp_tmp;
 	lock_acquire(&frame_lock);
 
@@ -275,7 +281,13 @@ syscall_handler (struct intr_frame *f)
 	  /* Close a file. */
 	  sys_close(f);
 	  break;
-  default: _sys_exit(-1,true);
+  /*case SYS_MMAP:
+	  sys_mmap(f);
+	  break;
+  case SYS_MUNMAP:
+	  sys_munmap(f);
+	  break;*/
+  default: _sys_exit(-1,true); break;
   }
 
 }
@@ -421,6 +433,9 @@ static void sys_open(struct intr_frame *f)
 	if(opened != NULL)
 	{
 		opened->fd=list_size(&thread_current()->files_opened)+2;
+		opened->is_mmaped = false;
+		opened->address = NULL;
+		opened->address = NULL;
 		list_push_back(&thread_current()->files_opened, &opened->file_elem);
 		f->eax = opened->fd;
 	}
@@ -617,9 +632,8 @@ static void sys_seek(struct intr_frame *f)
 	struct list_elem *it;
 	//acquire file lock and perform operations
 
-	//TODO: frame_pin check if need to pin 2 frames
-	//if the arguments are transitioning or only one
-	//frame_pin(thread_current()->pagedir, f->esp,1);
+	//TODO: check if argument frame pinning is really necessary
+	//should not be if the argument are copied inside the function
 
 	//pin the argument frame
 	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
@@ -698,6 +712,79 @@ static void sys_close(struct intr_frame *f)
 	}
 	release_file_lock();
 	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+}
+
+static void sys_mmap(struct intr_frame *f)
+{
+
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	POINTER_CHECK(tmp_esp,sizeof(int));
+	int fd = *tmp_esp;
+	tmp_esp++; //get the file size required for creation
+	POINTER_CHECK(tmp_esp,sizeof(unsigned));
+
+	//the mapping address
+	void *address = *tmp_esp;
+
+	//pin the argument frame
+	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	f->eax = -1;
+	struct list_elem *it;
+	struct file *fi;
+	struct file *mmap_file;
+
+	//sanity checks
+	if(fd==0 || fd==1)
+	{
+		//_sys_exit(-1,true);
+		return;
+	}
+
+	if(address==0)
+	{
+		return;
+	}
+
+
+
+	acquire_file_lock();
+	for(it = list_begin(&thread_current()->files_opened);
+				it != list_end(&thread_current()->files_opened);
+				it = list_next(it))
+	{
+		fi = list_entry(it,struct file, file_elem);
+		if(fi->fd == fd)
+		{
+			mmap_file = file_reopen(fi);
+			mmap_file->fd = list_size(&thread_current()->files_mapped)+2;
+			mmap_file->is_mmaped = true;
+			mmap_file->address = NULL;
+			break;
+		}
+	}
+
+	//mmap the newly created file if successful add it to our list
+	//of opened files
+	if(fi!=NULL)
+		if(map_file(thread_current()->pagedir, mmap_file))
+		{
+			list_push_back(&thread_current()->files_mapped, &mmap_file->file_elem);
+			f->eax = fi->fd;
+		}
+		else
+			file_close(mmap_file);
+	release_file_lock();
+
+	//unpin the args frame
+	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+}
+
+static void sys_munmap(struct intr_frame *f)
+{
+
 }
 
 

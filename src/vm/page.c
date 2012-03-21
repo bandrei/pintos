@@ -325,6 +325,10 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	//	lock_acquire(&frame_lock);
      	free(s_entry->table_ptr);
 	}
+	else if(s_entry->cur_type == FILE)
+	{
+		free(s_entry->table_ptr);
+	}
 	  /*switch(s_entry->init_type)
 	  {
 	    case RAM:
