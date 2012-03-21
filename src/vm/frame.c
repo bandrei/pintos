@@ -77,6 +77,9 @@ frame_get_map(uint32_t *kpage)
 }
 
 
+/**
+ * Atomically set a frame table flag
+ **/
 inline void frame_set_flag(uint32_t *kpage, uint32_t flag)
 {
   ASSERT(is_kernel_vaddr(kpage));
@@ -87,6 +90,9 @@ inline void frame_set_flag(uint32_t *kpage, uint32_t flag)
   asm ("orl %1, %0" : "=m" (frame_table[FRAME_INDEX(kpage)]) : "r" (flag) : "cc");
 }
 
+/**
+ * Atomically unset a frame table flag
+ **/
 inline void frame_unset_flag(uint32_t *kpage, uint32_t flag)
 {
   ASSERT(is_kernel_vaddr(kpage));
@@ -97,26 +103,13 @@ inline void frame_unset_flag(uint32_t *kpage, uint32_t flag)
   asm ("andl %1, %0" : "=m" (frame_table[FRAME_INDEX(kpage)]) : "r" (~flag) : "cc");
 }
 
+/**
+ * Causes a page fault on virtual address upage
+ **/
 inline void page_trigger_fault(uint32_t *upage)
 {
-  
-  asm ("movl %%eax, %0" : /* no outputs */ : "m" (upage) : "eax" );
+  asm ("movl %0, %%eax" : /* no outputs */ : "m" (*upage) : "eax");
 }
-
-
-/*
-uint32_t frame_get_flags(uintptr_t *kpage)
-{
-    ASSERT(is_kernel_vaddr(kpage));
-    return frame_table[FRAME_INDEX(kpage)].flags;
-}
-
-void frame_set_flags(uintptr_t *kpage, uint32_t nflags)
-{
-    ASSERT(is_kernel_vaddr(kpage));
-    frame_table[FRAME_INDEX(kpage)].flags = nflags;
-}
-*/
 
 void
 frame_table_init(struct frame_info *f_table, uint32_t count)
@@ -195,13 +188,9 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 				((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=true;
 				lock_release(&frame_lock);
 				//bring page into memory
-
-				force_frame = *round_start;
-				if(force_frame==5)
-				{
-
-				}
-
+				page_trigger_fault(round_start);
+				
+				
 			}
 		}
 		round_start += PGSIZE;
