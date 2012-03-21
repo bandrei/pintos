@@ -174,25 +174,23 @@ static void page_fault(struct intr_frame *f) {
 		{
 			if (tmp_entry->cur_type == EXE)
 			{
-
+				printf("HERE? EXE %x\n", fault_addr);
 				struct mmap_entry *exe_map =
 						(struct mmap_entry *) tmp_entry->table_ptr;
 				off_t pos = exe_map->file_ptr;
 				uint32_t *newpage = palloc_get_page(PAL_USER);
 				if (newpage == NULL)
 				{
-					printf("can't allocate");
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
 
 				if (upage >= thread_current()->stack_bottom)
 				{
-					printf("DO WE DIE HERE\n");
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
-				printf("We are setting the pagedir in EXE\n");
+				//printf("We are setting the pagedir in EXE\n");
 				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
 						true))
 				{
@@ -203,19 +201,20 @@ static void page_fault(struct intr_frame *f) {
 
 				size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
 
+				lock_acquire(&file_lock);
 				file_seek(thread_current()->our_file, pos);
 				file_read(thread_current()->our_file, upage,
 						exe_map->page_offset);
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
 
-
+				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
 			}
 			else if (tmp_entry->cur_type == SWAP)
 			{
-
+				printf("HERE?");
 				uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 				swap_index_t swap_slot = tmp_entry->table_ptr;
 				if (newpage == NULL)
@@ -223,26 +222,28 @@ static void page_fault(struct intr_frame *f) {
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
-				printf("We are setting the pagedir in SWAP\n");
+				//printf("We are setting the pagedir in SWAP\n");
 				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
 						true))
 				{
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
+				lock_acquire(&file_lock);
 				swap_in(swap_table, swap_slot, upage);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
 
 				/* pin the frame if necessary */
 				if(tmp_entry->pin)
 					frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
-
+				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
 
 			}
 			else if(tmp_entry->cur_type == FILE)
 			{
+
 				uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 				struct mmap_entry *file = tmp_entry->table_ptr;
 				if(newpage==NULL)
@@ -255,7 +256,7 @@ static void page_fault(struct intr_frame *f) {
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
-				printf("We are setting the pagedir in FILE\n");
+				//printf("We are setting the pagedir in FILE\n");
 				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
 										true))
 				{
@@ -263,9 +264,10 @@ static void page_fault(struct intr_frame *f) {
 						_sys_exit(-1, true);
 				}
 
+				lock_acquire(&file_lock);
 				file_seek(file->file_ptr,file->page_offset);
 				file_read(file->file_ptr,upage,PGSIZE);
-
+				lock_release(&file_lock);
 				/* pin the frame if necessary */
 				if(tmp_entry->pin)
 						frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
@@ -289,7 +291,7 @@ static void page_fault(struct intr_frame *f) {
 
 
 			uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
-			printf("We are setting the pagedir in STACK GROWTH\n");
+			//printf("We are setting the pagedir in STACK GROWTH\n");
 			if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
 					true))
 			{

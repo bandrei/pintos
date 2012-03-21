@@ -36,7 +36,6 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 		//TODO: Do memory checks on malloc
 		supp_map = malloc(sizeof(*supp_map));
-  	  printf("are we failing here in mmap ???\n");
 		init_supp_entry(supp_map);
 
 		mmap_file= malloc(sizeof(*mmap_file));

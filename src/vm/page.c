@@ -21,9 +21,9 @@ void init_supp_entry(struct supp_entry *s_entry)
 	s_entry->writable = true;
 	s_entry->pin = false;
    //printf("supp entry addr: %x\n",s_entry);
-	printf("It must be the supp lock!\n");
+	//printf("It must be the supp lock!\n");
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
-	printf("It must potato the supp lock!\n");
+	//printf("It must potato the supp lock!\n");
 	//put the s_entry at the head of the list
 }
 /*
@@ -342,9 +342,10 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	//	lock_acquire(&frame_lock);
      	free(s_entry->table_ptr);
 	}
-	else if(s_entry->cur_type == FILE)
+	else if(s_entry->init_type == FILE)
 	{
-		//free(s_entry->table_ptr);
+		file_close(((struct mmap_entry *)s_entry->table_ptr)->file_ptr);
+		free(s_entry->table_ptr);
 	}
 	  /*switch(s_entry->init_type)
 	  {
