@@ -109,8 +109,9 @@ inline void frame_unset_flag(uint32_t *kpage, uint32_t flag)
 inline void page_trigger_fault(uint32_t *upage)
 {
   
-  asm ("movl %0, %%eax" : /* no outputs */ : "m" (*upage) : "eax" );
+  asm ("testl %0, %%eax" : /* no outputs */ : "m" (*upage) : "eax", "cc" );
 }
+
 
 void
 frame_table_init(struct frame_info *f_table, uint32_t count)
