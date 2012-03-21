@@ -197,7 +197,7 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 				lock_release(&frame_lock);
 				//bring page into memory
 
-				force_frame = *round_start;
+				page_trigger_fault(round_start);
 
 
 			}
