@@ -100,7 +100,7 @@ inline void frame_unset_flag(uint32_t *kpage, uint32_t flag)
 inline void page_trigger_fault(uint32_t *upage)
 {
   
-  asm ("movl %%eax, %0" : /* no outputs */ : "m" (upage) : "eax" );
+  asm ("movl %0, %%eax" : /* no outputs */ : "m" (*upage) : "eax" );
 }
 
 
@@ -172,38 +172,44 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 	char a;
 	//size_t pages = (end_page-start_page/PGSIZE
 
+	lock_acquire(&frame_lock);
 	while(round_start <= pg_round_down(end_page))
 	{
+
 		pte = lookup_page(pd,round_start,false);
 		if(*pte!=0)
 		{
-			printf("pinning round_start %x",round_start);
 			if((*pte & PTE_P) != 0)
 			{
 
-				printf(" in frame \n");
 			//page is in frame
-				lock_acquire(&frame_lock);
+
 				frame_table[FRAME_INDEX(pte_get_page (*pte))].flags |= FRAME_STICKY;
-				lock_release(&frame_lock);
+
 
 			}
 			else
 			{
-				printf(" in table \n");
 			//page is not in frame so update supp_entry
-				lock_acquire(&frame_lock);
+
 				((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=true;
-				lock_release(&frame_lock);
 				//bring page into memory
-
-				page_trigger_fault(round_start);
-
 
 			}
 		}
 		round_start += PGSIZE;
 	}
+	lock_release(&frame_lock);
+
+	round_start = pg_round_down(start_upage);
+	while(round_start <= pg_round_down(end_page))
+	{
+
+					page_trigger_fault(round_start);
+
+			round_start += PGSIZE;
+	}
+
 }
 
 void frame_unpin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)

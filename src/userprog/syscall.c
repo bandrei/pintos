@@ -217,7 +217,6 @@ static void
 syscall_handler (struct intr_frame *f)
 {
 
-	printf("sys call id: %x\n",*(uint32_t*)f->esp);
   //get system call number and call appropriate function
 	thread_current()->stack_save_sys = f->esp;
   //need to do checks here
@@ -497,7 +496,6 @@ static void sys_read(struct intr_frame *f)
 	struct file *fi = NULL;
 	struct list_elem *it;
 
-	printf("Address of buff %x %x \n", pg_round_down(buff_addr), pg_round_down(buff_addr+buff_size));
 	//pin the argument frame
 	frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 

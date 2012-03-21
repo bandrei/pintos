@@ -174,7 +174,6 @@ static void page_fault(struct intr_frame *f) {
 		{
 			if (tmp_entry->cur_type == EXE)
 			{
-				printf("HERE? EXE %x\n", fault_addr);
 				struct mmap_entry *exe_map =
 						(struct mmap_entry *) tmp_entry->table_ptr;
 				off_t pos = exe_map->file_ptr;
@@ -214,7 +213,6 @@ static void page_fault(struct intr_frame *f) {
 			}
 			else if (tmp_entry->cur_type == SWAP)
 			{
-				printf("HERE?");
 				uint32_t *newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 				swap_index_t swap_slot = tmp_entry->table_ptr;
 				if (newpage == NULL)
