@@ -344,7 +344,8 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	}
 	else if(s_entry->init_type == FILE)
 	{
-		file_close(((struct mmap_entry *)s_entry->table_ptr)->file_ptr);
+	//	printf("WE ARE CALLING CLEAR FILE\n %d",thread_current()->tid);
+		//file_close(((struct mmap_entry *)s_entry->table_ptr)->file_ptr);
 		free(s_entry->table_ptr);
 	}
 	  /*switch(s_entry->init_type)

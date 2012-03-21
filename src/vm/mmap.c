@@ -54,11 +54,11 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 	return true;
 }
-/*
+
 void unmap_file(uint32_t *pd, struct file *fi)
 {
 
-	lock_acquire(&frame_lock);
+
 	off_t file_size = file_length(fi);
 	size_t pages_to_del = (file_size%PGSIZE==0) ? file_size/PGSIZE: file_size/PGSIZE+1;
 	size_t pages_to_del_cur = 0;
@@ -72,6 +72,7 @@ void unmap_file(uint32_t *pd, struct file *fi)
 	struct mmap_entry *mmap_file;
 	struct frame_info *f_inf;
 	uint32_t *pte;
+	lock_acquire(&frame_lock);
 	while(start_address <= pg_round_down(fi->address+file_size))
 	{
 		pte = lookup_page(pd,start_address,false);
@@ -107,4 +108,4 @@ void unmap_file(uint32_t *pd, struct file *fi)
 
 
 	lock_release(&frame_lock);
-}*/
+}

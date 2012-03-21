@@ -114,16 +114,7 @@ _sys_exit (int status, bool msg_print)
 	 * Close all files here while loop and call to file_close
 	 */
 
-	struct file *file;
-	it = list_begin(&cur->files_opened);
-	while(it != list_end(&cur->files_opened))
-	{
-		file = list_entry(it,struct file, file_elem);
-		it = file->file_elem.next;
-		list_remove(&file->file_elem);
-		file->file_elem.prev =file->file_elem.next = NULL;
-		file_close(file);
-	}
+
 	//check if parent exists
 	if(cur->parent != NULL)
 	{
@@ -186,10 +177,33 @@ _sys_exit (int status, bool msg_print)
 
 
    struct supp_entry *supp_tmp;
-   it=list_begin(&cur->supp_list);
 
    lock_acquire(&frame_lock);
    lock_acquire(&file_lock);
+	struct file *file;
+	it = list_begin(&cur->files_opened);
+	while(it != list_end(&cur->files_opened))
+	{
+		file = list_entry(it,struct file, file_elem);
+		it = file->file_elem.next;
+		list_remove(&file->file_elem);
+		file->file_elem.prev =file->file_elem.next = NULL;
+		file_close(file);
+	}
+
+
+   for (it = list_begin(&cur->files_mapped); it != list_end(&cur->files_mapped); )
+   {
+
+     			file = list_entry(it,struct file, file_elem);
+     			itnext = list_next(it);
+     		    list_remove(it);
+     		    //before file close copy contents from memory to file
+     		    //use unmap
+     		    file_close(file);
+     			it = itnext;
+   }
+
    for (it = list_begin(&cur->supp_list); it != list_end(&cur->supp_list); )
    {
 
@@ -202,6 +216,7 @@ _sys_exit (int status, bool msg_print)
 		    free(supp_tmp);
 			it = itnext;
 	}
+
    lock_release(&file_lock);
    lock_release(&frame_lock);
    thread_exit();
@@ -727,7 +742,7 @@ static void sys_mmap(struct intr_frame *f)
 	f->eax = -1;
 	struct list_elem *it;
 	struct file *fi;
-	struct file *mmap_file;
+	struct file *mmap_file = NULL;
 
 	//sanity checks
 	if(fd==0 || fd==1)
@@ -751,10 +766,13 @@ static void sys_mmap(struct intr_frame *f)
 		fi = list_entry(it,struct file, file_elem);
 		if(fi->fd == fd)
 		{
+			if(file_length(fi) == 0)
+				break;
 			mmap_file = file_reopen(fi);
 			mmap_file->fd = list_size(&thread_current()->files_mapped)+2;
 			mmap_file->is_mmaped = true;
 			mmap_file->address = address;
+
 			break;
 		}
 	}
