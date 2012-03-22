@@ -38,29 +38,19 @@ extern struct list frame_list;
 
 struct frame_info
 {
-	struct supp_entry *s_entry;
 
-	//re-enable this line if storing the address as well
-
+    struct supp_entry *s_entry;
     uint32_t *pd;
     uint32_t flags;
     uint32_t *upage;
 
     struct list_elem frame_elem;
-	//tid_t pid;
 };
 
 
 
-/*
- * TODO: make sure eviction will set the PTE entry to NULL
- * whenever removing a page from the frame
- */
 
-/*
- * The frame array will only have enough entries
- * to store the pointers to user pages
- */
+
 
 
 
@@ -71,8 +61,6 @@ struct frame_info
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage);
 void frame_clear_map(uint32_t *kpage);
 void frame_table_init (struct frame_info *f_table, uint32_t count);
-//uint32_t frame_get_flags(uintptr_t *kpage);
-//void frame_set_flags(uintptr_t *kpage, uint32_t nflags);
 inline void frame_set_flag(uint32_t *kpage, uint32_t flag);
 inline void frame_unset_flag(uint32_t *kpage, uint32_t flag);
 inline void page_trigger_fault(uint32_t *upage);

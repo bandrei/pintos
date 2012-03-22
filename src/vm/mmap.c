@@ -3,9 +3,11 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/pte.h"
 #include "stdio.h"
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 
 bool map_file(uint32_t *pd,struct file *fi)
 {
@@ -36,9 +38,19 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 		//TODO: Do memory checks on malloc
 		supp_map = malloc(sizeof(*supp_map));
+		if(supp_map == NULL)
+		{
+			lock_release(&frame_lock);
+			_sys_exit(-1,true);
+		}
 		init_supp_entry(supp_map);
 
 		mmap_file= malloc(sizeof(*mmap_file));
+		if(mmap_file == NULL)
+		{
+			lock_release(&frame_lock);
+			_sys_exit(-1,true);
+		}
 		mmap_file->file_ptr = fi;
 		mmap_file->page_offset = start_address-(uint8_t *)fi->address;
 
@@ -60,16 +72,12 @@ void unmap_file(uint32_t *pd, struct file *fi)
 
 
 	off_t file_size = file_length(fi);
-	size_t pages_to_del = (file_size%PGSIZE==0) ? file_size/PGSIZE: file_size/PGSIZE+1;
-	size_t pages_to_del_cur = 0;
 
 	struct supp_entry *start_delete;
 	//start from the beginning of the mapped address and check if it's in frame
 	//or not
 	uint8_t *start_address = (uint8_t *)fi->address;
 	start_address = (uint8_t*)fi->address;
-	struct supp_entry *supp_map;
-	struct mmap_entry *mmap_file;
 	struct frame_info *f_inf;
 	uint32_t *pte;
 	while(start_address <= pg_round_down(fi->address+file_size))

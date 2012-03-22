@@ -77,7 +77,7 @@ void paging_evict(uintptr_t kpagev)
   if (kframe->s_entry == NULL)
     PANIC ("Attempt to evict an empty frame");
   
-  if (kframe->flags & FRAME_STICKY)
+  if (kframe->s_entry->pin)
     PANIC ("Attempt to evict a sticky frame");
   
   // Find its supp_entry:
@@ -190,7 +190,7 @@ uintptr_t paging_eviction()
 
 	  fi=list_entry(it,struct frame_info, frame_elem);
 	  it = fi->frame_elem.next;
-	  if(fi->s_entry!=NULL && ((fi->flags & FRAME_STICKY) == 0))
+	  if(fi->s_entry!=NULL && !fi->s_entry->pin)
 	  {
 	  	  if(fi->flags & FRAME_SECOND_CHANCE)
 	  	  {
