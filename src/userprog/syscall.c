@@ -44,13 +44,10 @@ POINTER_CHECK(char *tmp_esp, size_t n)
 	size_t i = 0;
 	if(n>0)//case for buffers and other structures
 	{
-		for(i=0;i<n;i++)
-		{
-			if(tmp_esp >= PHYS_BASE)
-			{
-				_sys_exit(-1,true);
-			}
-		}
+
+		if(tmp_esp + n >= PHYS_BASE)
+			_sys_exit(-1,true);
+
 	}//case for strings
 	else
 	{
