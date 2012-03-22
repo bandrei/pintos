@@ -54,8 +54,8 @@ bool map_file(uint32_t *pd,struct file *fi)
 		mmap_file->file_ptr = fi;
 		mmap_file->page_offset = start_address-(uint8_t *)fi->address;
 
-		supp_map->init_type = FILE;
-		supp_map->cur_type = FILE;
+		SUPP_SET_CUR_STATE(supp_map->info_arena, FILE);
+		SUPP_SET_INIT_STATE(supp_map->info_arena, FILE);
 		supp_map->table_ptr = mmap_file;
 		supp_map->writable = true;
 

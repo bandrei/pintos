@@ -171,7 +171,7 @@ static void page_fault(struct intr_frame *f) {
 		void *upage = pg_round_down(fault_addr);
 		if (tmp_entry != NULL)
 		{
-			if (tmp_entry->cur_type == EXE)
+			if (SUPP_GET_CUR_STATE(tmp_entry->info_arena) == EXE)
 			{
 				struct mmap_entry *exe_map =
 						(struct mmap_entry *) tmp_entry->table_ptr;
@@ -191,7 +191,7 @@ static void page_fault(struct intr_frame *f) {
 				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
 						true))
 				{
-					printf("or should we fail here?\n");
+
 					lock_release(&frame_lock);
 					_sys_exit(-1, true);
 				}
@@ -209,7 +209,7 @@ static void page_fault(struct intr_frame *f) {
 				lock_release(&frame_lock);
 
 			}
-			else if (tmp_entry->cur_type == SWAP)
+			else if (SUPP_GET_CUR_STATE(tmp_entry->info_arena) == SWAP)
 			{
 				uint32_t *newpage = palloc_get_page(PAL_USER);
 				swap_index_t swap_slot = tmp_entry->table_ptr;
@@ -234,7 +234,7 @@ static void page_fault(struct intr_frame *f) {
 
 
 			}
-			else if(tmp_entry->cur_type == FILE)
+			else if(SUPP_GET_CUR_STATE(tmp_entry->info_arena) == FILE)
 			{
 
 				uint32_t *newpage = palloc_get_page(PAL_USER);
@@ -266,11 +266,10 @@ static void page_fault(struct intr_frame *f) {
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
-
 			}
 			else
 			{
-				printf("Failed to match any %x", tmp_entry->cur_type);
+				PANIC("Unidentified type of page");
 				lock_release(&frame_lock);
 				kill(f);
 			}
@@ -297,6 +296,7 @@ static void page_fault(struct intr_frame *f) {
 		}
 		else
 		{
+
 			lock_release(&frame_lock);
 			kill(f);
 		}

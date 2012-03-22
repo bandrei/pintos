@@ -22,43 +22,27 @@ extern struct swapfile *swap_table;
  **/
 
 
-#define SUP_STATE_MASK_SET ((~0U)<<3)
-#define SUP_STATE_MASK_GET (~SUP_STATE_MASK_SET)
 
-#define SUP_STATE_RAM 0U
-#define SUP_STATE_SWAP 1U
-#define SUP_STATE_FILE 2U
-#define SUP_STATE_EXE 3U
 
-#define SUP_ZERO (1U<<4)
 
-/**
- * Example:
- * SUP_SET_STATE(t->info_arena,SUP_STATE_RAM)
- * if (SUP_GET_STATE(t->info_arena) == SUP_STATE_RAM)
- **/
+#define SUPP_GET_CUR_STATE(VAL)  (VAL & 3U)
+#define SUPP_GET_INIT_STATE(VAL) ((VAL & 12U) >> 2)
 
-//#define SUP_SET_STATE(VAL,STATE) VAL = ((VAL & SUP_STATE_MASK_SET) | (STATE & SUP_STATE_MASK_GET))
+#define SUPP_SET_CUR_STATE(VAL,STATE) (VAL = (VAL & ~3U) | STATE)
+#define SUPP_SET_INIT_STATE(VAL,STATE) (VAL  = ((VAL & ~12U) | (STATE << 2)))
 
-//#define SUP_GET_STATE(VAL) (VAL & SUP_STATE_MASK_GET)
-
-//#define SUPP_IS_EXE 4U
-//#define SUPP_IS_RAM 1U
-
-//#define SUPP_SET_FLAG(VAL, FLAG) (VAL = (VAL | FLAG))
-//#define SUPP_UNSET_FLAG(VAL, FLAG) (VAL = (VAL & ~FLAG))
-#define SUPP_GET_FLAG(VAL) VAL
-#define SUPP_SET_FLAG(VAL, FLAG) (VAL = FLAG)
-
+#define SUPP_GET_STICKY(VAL) (VAL & 16U)
+#define SUPP_SET_STICKY(VAL) (VAL = (VAL | 16U))
+#define SUPP_RESET_STICKY(VAL) (VAL = (VAL & ~16U))
 
 
 
 enum supp_flag
 {
-	RAM = 0,
-	SWAP = 1,
-	FILE = 2,
-	EXE = 3
+	RAM = 0U,
+	SWAP = 1U,
+	FILE = 2U,
+	EXE = 3U
 	//SUPP_ZERO = 5U
 };
 
@@ -76,14 +60,13 @@ struct supp_entry
 	/* store information in this 32 bit number
 	 * in a bitwise fashion;
 	 */
-	//uint32_t info_arena;
+	uint32_t info_arena;
 
 	enum supp_flag cur_type;
 	enum supp_flag init_type;
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
 	bool writable;
-	bool pin;
 	//tmp hack until mmap implementation
 
 	/*use this in conjunction with a list

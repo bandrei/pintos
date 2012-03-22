@@ -370,7 +370,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  lock_acquire(&file_lock);
   file = filesys_open (file_name);
+  lock_release(&file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -379,7 +381,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     //do sensitive operations on the file
   	//therefore do not allow other threads
   	//to write to the file
-  enum intr_level old_level = intr_disable();
     lock_acquire(&file_lock);
     //current thread is now holding a lock on
     //the file system
@@ -389,7 +390,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     t->our_file = file;
     lock_release(&file_lock);
     t->locked_on_file = false;
-    intr_set_level(old_level);
 
 
 
@@ -553,42 +553,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   file_seek (file, ofs);
 
-  //allocate just one page once and then create the rest of pages
-  //in supp_table, only put them in memory once they are requested
-  //set each of the upage address in the page table to point
-  //to the supp_entry
-  uint32_t iterations = 0;
-  //printf("no_of iterations : \n");
-  /*while (read_bytes > 0 || zero_bytes > 0)
-    {
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
-
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
-      iterations++;
-
-
-
-    }*/
 
   struct supp_entry *s_table_entry;
   struct mmap_entry *exe_table_entry;
@@ -596,11 +560,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         {
       	  size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       	  size_t page_zero_bytes = PGSIZE - page_read_bytes;
-      	  iterations++;
-      	  //TODO: fill in this area with the creation
-      	  //the page fault handler will create zero filled pages anyway
-      	  //therefore no need to fill the pages here;
-      	  //lock_acquire(&frame_lock);
+
+      	  lock_acquire(&frame_lock);
       	  s_table_entry = malloc(sizeof(*s_table_entry));
       	  init_supp_entry(s_table_entry);
 
@@ -608,31 +569,27 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       	  exe_table_entry->file_ptr = file->pos;
       	  exe_table_entry->page_offset = page_read_bytes;
           
-      	  //printf("IN FILE SEEK POINTER COUNT %d", exe_table_entry->file_ptr);
-          //SUP_SET_STATE(s_table_entry->info_arena,SUP_STATE_EXE);
-          //(SUPP_SET_FLAG(s_table_entry->cur_type, EXE));
-      	  s_table_entry->init_type = EXE;
-      	  s_table_entry->cur_type = EXE;
+
+      	  SUPP_SET_CUR_STATE(s_table_entry->info_arena, EXE);
+      	  SUPP_SET_INIT_STATE(s_table_entry->info_arena, EXE);
+
       	  s_table_entry->writable = writable;
-      	  //printf("info_arena: %x \n", s_table_entry->info_arena);
       	  s_table_entry->table_ptr = exe_table_entry;
 
 
-      	//  printf("File offset %d \n\n", s_table_entry->table_ptr.file_table_entry);
-      	   //printf("upage: %x \n", upage);
-     // 	  printf("exe_entry ptr : %x \n", (uint32_t)exe_table_entry);
-      	//printf("s_entry ptr : %x ", (uint32_t)s_table_entry);
 
       	  if(upage >= thread_current()->stack_bottom) _sys_exit(-1,true);
       	  pagedir_set_ptr(thread_current()->pagedir, upage, s_table_entry);
-      	 // lock_release(&frame_lock);
+      	  lock_release(&frame_lock);
 
+      	  lock_acquire(&file_lock);
       	  (page_read_bytes+file->pos >= file_length(file)) ? file_seek(file,file_length(file)-1) : file_seek(file,file->pos+page_read_bytes);
+      	  lock_release(&file_lock);
+
       	  read_bytes -= page_read_bytes;
       	  zero_bytes -= page_zero_bytes;
       	  upage += PGSIZE;
         }
-  //printf("iterations count:  %d  \n", iterations);
   return true;
 }
 

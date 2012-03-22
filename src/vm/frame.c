@@ -23,7 +23,7 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
 
     list_push_back(&frame_list, &kframe->frame_elem);
 
-    kframe->s_entry->cur_type = RAM;
+    SUPP_SET_CUR_STATE(kframe->s_entry->info_arena, RAM);
 
 }
 
@@ -33,7 +33,7 @@ void frame_clear_map(uint32_t *kpage)
 	/* there is nothing in the frame so have it point to NULL */
 
 	list_remove(&frame_table[FRAME_INDEX(kpage)].frame_elem);
-	frame_table[FRAME_INDEX(kpage)].s_entry->pin = false;
+	SUPP_RESET_STICKY(frame_table[FRAME_INDEX(kpage)].s_entry->info_arena);
 	frame_table[FRAME_INDEX(kpage)].s_entry=NULL;
     frame_table[FRAME_INDEX(kpage)].flags=0;
 
@@ -118,7 +118,7 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 
 			//page is in frame
 				
-				((struct supp_entry *)(frame_table[FRAME_INDEX(pte_get_page (*pte))].s_entry))->pin=true;
+				SUPP_SET_STICKY(((struct supp_entry *)(frame_table[FRAME_INDEX(pte_get_page (*pte))].s_entry))->info_arena);
 
 
 			}
@@ -126,7 +126,7 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 			{
 			//page is not in frame so update supp_entry
 
-				((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=true;
+				SUPP_SET_STICKY(((struct supp_entry *)pagedir_get_ptr(pd,round_start))->info_arena);
 			}
 		}
 		round_start += PGSIZE;
@@ -157,12 +157,12 @@ void frame_unpin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 			if((*pte & PTE_P) != 0)
 			{
 			//page is in frame
-				frame_table[FRAME_INDEX(pte_get_page (*pte))].flags &= (~FRAME_STICKY);
+				SUPP_RESET_STICKY(((struct supp_entry *)(frame_table[FRAME_INDEX(pte_get_page (*pte))].s_entry))->info_arena);
 			}
 			else
 			{
 			//page is not in frame so update supp_entry
-			((struct supp_entry *)pagedir_get_ptr(pd,round_start))->pin=false;
+				SUPP_RESET_STICKY(((struct supp_entry *)pagedir_get_ptr(pd,round_start))->info_arena);
 			}
 		}
 		round_start += PGSIZE;

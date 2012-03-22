@@ -17,10 +17,11 @@ void init_supp_entry(struct supp_entry *s_entry)
 {
 	ASSERT(s_entry != NULL);
 	s_entry->table_ptr = NULL;
-	s_entry->cur_type = RAM;
-	s_entry->init_type = RAM;
+	s_entry->info_arena = 0;
+	SUPP_SET_CUR_STATE(s_entry->info_arena, RAM);
+	SUPP_SET_INIT_STATE(s_entry->info_arena, RAM);
+	//SUPP_SET_STICKY(s_entry->info_arena);
 	s_entry->writable = true;
-	s_entry->pin = false;
 
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
 
@@ -61,7 +62,7 @@ void paging_evict(uintptr_t kpagev)
   if (kframe->s_entry == NULL)
     PANIC ("Attempt to evict an empty frame");
   
-  if (kframe->s_entry->pin)
+  if (SUPP_GET_STICKY(kframe->s_entry->info_arena))
     PANIC ("Attempt to evict a sticky frame");
   
   // Find its supp_entry:
@@ -71,28 +72,28 @@ void paging_evict(uintptr_t kpagev)
   
   
   // Update the supp_entry:
- if (ksup->cur_type==RAM)
+ if (SUPP_GET_CUR_STATE(ksup->info_arena)==RAM)
  {
 
 
 
-	 if(ksup->init_type ==RAM)
+	 if(SUPP_GET_INIT_STATE(ksup->info_arena) ==RAM)
 	 {
 
 
 	  if(pagedir_is_dirty(kframe->pd,kframe->upage))
 	  {
-		  ksup->cur_type = SWAP;
+		  SUPP_SET_CUR_STATE(ksup->info_arena, SWAP);
 		  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 		  ksup->table_ptr= swapslot;
 	  }
 	 }
-	 else if(ksup->init_type == EXE)
+	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == EXE)
 	 {
 
 		if(ksup->writable)
 		{
-			ksup->cur_type = SWAP;
+			SUPP_SET_CUR_STATE(ksup->info_arena, SWAP);
 			lock_acquire(&file_lock);
 			swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 			lock_release(&file_lock);
@@ -102,16 +103,16 @@ void paging_evict(uintptr_t kpagev)
 
 		if(!ksup->writable)
 		{
-			ksup->cur_type = ksup->init_type;
+			SUPP_SET_CUR_STATE(ksup->info_arena, EXE);
 		}
 
 	 }
-	 else if(ksup->init_type == FILE)
+	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == FILE)
 	 {
-		 ksup->cur_type = ksup->init_type;
+		 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
 		 if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
 		 {
-			 ksup->cur_type = FILE;
+			 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
 			 struct mmap_entry *tmp_file = (struct mmap_entry *)ksup->table_ptr;
 			 struct file *f = tmp_file->file_ptr;
 			 lock_acquire(&file_lock);
@@ -150,7 +151,6 @@ uintptr_t paging_eviction()
   struct list_elem *it;
   struct list_elem *it_end = list_end(&frame_list);
   struct frame_info *fi;
-
  it = list_begin(&frame_list);
  while(it!=it_end)
   {
@@ -158,7 +158,7 @@ uintptr_t paging_eviction()
 
 	  fi=list_entry(it,struct frame_info, frame_elem);
 	  it = fi->frame_elem.next;
-	  if(fi->s_entry!=NULL && !fi->s_entry->pin)
+	  if(fi->s_entry!=NULL && !SUPP_GET_STICKY(fi->s_entry->info_arena))
 	  {
 	  	  if(fi->flags & FRAME_SECOND_CHANCE)
 	  	  {
@@ -197,24 +197,24 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 {
 
 	
-	if(s_entry->cur_type == SWAP)
+	if(SUPP_GET_CUR_STATE(s_entry->info_arena) == SWAP)
 	{
 		//remove from swap
 	 bitmap_reset(swap_table->page_map,s_entry->table_ptr);
 	}
-	else if(s_entry->cur_type == RAM)
+	else if(SUPP_GET_CUR_STATE(s_entry->info_arena) == RAM)
 	{
 		//printf don't do anything as pagedir will take care
 		//of it (supp_entry might not contain a pointer to supp
 		//entry
 		
 	}
-	else if(s_entry->init_type == EXE)
+	else if(SUPP_GET_CUR_STATE(s_entry->info_arena) == EXE)
 	{
 
      	free(s_entry->table_ptr);
 	}
-	else if(s_entry->init_type == FILE)
+	else if(SUPP_GET_CUR_STATE(s_entry->info_arena) == FILE)
 	{
 	
 		free(s_entry->table_ptr);

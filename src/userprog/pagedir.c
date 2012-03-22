@@ -138,13 +138,8 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       struct supp_entry *s_entry;
       if(*pte == 0)
       {
-    	 //printf("new s_entry created\n");
     	  s_entry = malloc(sizeof(*s_entry));
-    	 // printf("are we failing here in pagedir_set_page ???\n");
     	  init_supp_entry(s_entry);
-    	  //s_entry->table_ptr = &frame_table[FRAME_INDEX(kpage)];
-    	// printf("s_entry ptr : %x ", (uint32_t)s_entry);
-    	 // printf("table_ptr %x \n",&frame_table[FRAME_INDEX(kpage)]);
       }
       else
       {
