@@ -102,25 +102,34 @@ void paging_evict(uintptr_t kpagev)
 		//printf("Evicting: %x  %x ", ksup->cur_type, ksup->init_type);
 	 if(ksup->init_type ==RAM)
 	 {
-	  ksup->cur_type = SWAP;
+
 	  //SUP_SET_STATE(ksup->info_arena, SUP_STATE_SWAP);
 	 // printf("\nEVICTING THIS SUPP ENTRY %x\n",ksup);
 	 // pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);
-	  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
-	  ksup->table_ptr= swapslot;
+	  if(pagedir_is_dirty(kframe->pd,kframe->upage))
+	  {
+		  ksup->cur_type = SWAP;
+		  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+		  ksup->table_ptr= swapslot;
+	  }
 	 }
 	 else if(ksup->init_type == EXE)
 	 {
 		// printf("\nNOT RAM: EVICTING THIS SUPP ENTRY %x\n",ksup);
-		ksup->cur_type = ksup->init_type;
-		if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
+		//ksup->cur_type = ksup->init_type;
+		if(ksup->writable)
 		{
 			ksup->cur_type = SWAP;
 			lock_acquire(&file_lock);
 			swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 			lock_release(&file_lock);
-			pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		    ksup->table_ptr= swapslot;
+		}
+		else
+
+		if(!ksup->writable)
+		{
+			ksup->cur_type = ksup->init_type;
 		}
 		// ksup->table_ptr = kframe;
 	 }
@@ -136,7 +145,6 @@ void paging_evict(uintptr_t kpagev)
 			 file_seek(f, tmp_file->page_offset);
 			 file_write(f,kframe->upage, PGSIZE);
 			 lock_release(&file_lock);
-			 pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		 }
 	 }
 	  pagedir_set_ptr(kframe->pd, (void *) kframe->upage, ksup);

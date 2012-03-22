@@ -157,8 +157,7 @@ static void page_fault(struct intr_frame *f) {
 	 fault_addr,
 	 not_present ? "not present" : "rights violation",
 	 write ? "writing" : "reading",
-	 user ? "user" : "kernel");
-	 */
+	 user ? "user" : "kernel");*/
 
 	if (!not_present)
 	{
@@ -204,10 +203,10 @@ static void page_fault(struct intr_frame *f) {
 				file_seek(thread_current()->our_file, pos);
 				file_read(thread_current()->our_file, upage,
 						exe_map->page_offset);
+				lock_release(&file_lock);
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
-				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
 			}
@@ -229,13 +228,13 @@ static void page_fault(struct intr_frame *f) {
 				}
 				lock_acquire(&file_lock);
 				swap_in(swap_table, swap_slot, upage);
-				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
 
+				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
+				lock_release(&file_lock);
 				/* pin the frame if necessary */
 				if(tmp_entry->pin)
 					frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
-				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
 
@@ -277,7 +276,8 @@ static void page_fault(struct intr_frame *f) {
 			}
 			else
 			{
-
+				printf("Failed to match any %x", tmp_entry->cur_type);
+				lock_release(&frame_lock);
 				kill(f);
 			}
 		}
