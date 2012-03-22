@@ -204,7 +204,7 @@ static void page_fault(struct intr_frame *f) {
 						exe_map->page_offset);
 				lock_release(&file_lock);
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
-				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
+				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
@@ -227,7 +227,7 @@ static void page_fault(struct intr_frame *f) {
 				lock_acquire(&file_lock);
 				swap_in(swap_table, swap_slot, upage);
 
-				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
+				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
 				lock_release(&file_lock);
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);

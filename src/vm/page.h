@@ -35,6 +35,8 @@ extern struct swapfile *swap_table;
 #define SUPP_SET_STICKY(VAL) (VAL = (VAL | 16U))
 #define SUPP_RESET_STICKY(VAL) (VAL = (VAL & ~16U))
 
+#define SUPP_SET_WRITABLE(VAL,SETVAL) (VAL = ((VAL & ~WRITABLE) | SETVAL))
+#define SUPP_GET_WRITABLE(VAL) (VAL & 32U)
 
 
 enum supp_flag
@@ -42,7 +44,8 @@ enum supp_flag
 	RAM = 0U,
 	SWAP = 1U,
 	FILE = 2U,
-	EXE = 3U
+	EXE = 3U,
+	WRITABLE = 32U
 	//SUPP_ZERO = 5U
 };
 
@@ -62,11 +65,8 @@ struct supp_entry
 	 */
 	uint32_t info_arena;
 
-	enum supp_flag cur_type;
-	enum supp_flag init_type;
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
-	bool writable;
 	//tmp hack until mmap implementation
 
 	/*use this in conjunction with a list

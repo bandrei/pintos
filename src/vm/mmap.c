@@ -56,8 +56,9 @@ bool map_file(uint32_t *pd,struct file *fi)
 
 		SUPP_SET_CUR_STATE(supp_map->info_arena, FILE);
 		SUPP_SET_INIT_STATE(supp_map->info_arena, FILE);
+		SUPP_SET_WRITABLE(supp_map->info_arena,WRITABLE);
 		supp_map->table_ptr = mmap_file;
-		supp_map->writable = true;
+		//supp_map->writable = true;
 
 		pagedir_set_ptr(pd,start_address,supp_map);
 		start_address += PGSIZE;

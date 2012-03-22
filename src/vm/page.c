@@ -20,8 +20,9 @@ void init_supp_entry(struct supp_entry *s_entry)
 	s_entry->info_arena = 0;
 	SUPP_SET_CUR_STATE(s_entry->info_arena, RAM);
 	SUPP_SET_INIT_STATE(s_entry->info_arena, RAM);
+	SUPP_SET_WRITABLE(s_entry->info_arena,WRITABLE);
 	//SUPP_SET_STICKY(s_entry->info_arena);
-	s_entry->writable = true;
+	//s_entry->writable = true;
 
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
 
@@ -91,7 +92,7 @@ void paging_evict(uintptr_t kpagev)
 	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == EXE)
 	 {
 
-		if(ksup->writable)
+		if(SUPP_GET_WRITABLE(ksup->info_arena))
 		{
 			SUPP_SET_CUR_STATE(ksup->info_arena, SWAP);
 			lock_acquire(&file_lock);
@@ -101,7 +102,7 @@ void paging_evict(uintptr_t kpagev)
 		}
 		else
 
-		if(!ksup->writable)
+		if(!SUPP_GET_WRITABLE(ksup->info_arena))
 		{
 			SUPP_SET_CUR_STATE(ksup->info_arena, EXE);
 		}
@@ -110,7 +111,7 @@ void paging_evict(uintptr_t kpagev)
 	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == FILE)
 	 {
 		 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
-		 if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
+		 if(pagedir_is_dirty(kframe->pd,kframe->upage) && SUPP_GET_WRITABLE(ksup->info_arena))
 		 {
 			 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
 			 struct mmap_entry *tmp_file = (struct mmap_entry *)ksup->table_ptr;

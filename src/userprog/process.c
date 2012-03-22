@@ -572,8 +572,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       	  SUPP_SET_CUR_STATE(s_table_entry->info_arena, EXE);
       	  SUPP_SET_INIT_STATE(s_table_entry->info_arena, EXE);
-
-      	  s_table_entry->writable = writable;
+      	  SUPP_SET_WRITABLE(s_table_entry->info_arena, (writable ? WRITABLE : 0U));
+      	 // s_table_entry->writable = writable;
       	  s_table_entry->table_ptr = exe_table_entry;
 
 
