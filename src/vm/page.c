@@ -116,7 +116,9 @@ void paging_evict(uintptr_t kpagev)
 		if(pagedir_is_dirty(kframe->pd,kframe->upage) && ksup->writable)
 		{
 			ksup->cur_type = SWAP;
+			lock_acquire(&file_lock);
 			swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
+			lock_release(&file_lock);
 			pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		    ksup->table_ptr= swapslot;
 		}
@@ -130,8 +132,10 @@ void paging_evict(uintptr_t kpagev)
 			 ksup->cur_type = FILE;
 			 struct mmap_entry *tmp_file = (struct mmap_entry *)ksup->table_ptr;
 			 struct file *f = tmp_file->file_ptr;
+			 lock_acquire(&file_lock);
 			 file_seek(f, tmp_file->page_offset);
 			 file_write(f,kframe->upage, PGSIZE);
+			 lock_release(&file_lock);
 			 pagedir_set_dirty(kframe->pd,kframe->upage,false);
 		 }
 	 }

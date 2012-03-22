@@ -200,6 +200,7 @@ _sys_exit (int status, bool msg_print)
      		    list_remove(it);
      		    //before file close copy contents from memory to file
      		    //use unmap
+     		    unmap_file(thread_current()->pagedir,file);
      		    file_close(file);
      			it = itnext;
    }
@@ -294,7 +295,7 @@ syscall_handler (struct intr_frame *f)
 	  sys_mmap(f);
 	  break;
   case SYS_MUNMAP:
-//	/  sys_munmap(f);
+	  sys_munmap(f);
 	  break;
   default: _sys_exit(-1,true); break;
   }
@@ -797,7 +798,43 @@ static void sys_mmap(struct intr_frame *f)
 static void sys_munmap(struct intr_frame *f)
 {
 
-	printf("ARE WE CALLED?\n");
+	int *tmp_esp = f->esp;
+	tmp_esp++;
+	POINTER_CHECK(tmp_esp,sizeof(int));
+	int fd = *tmp_esp;
+
+
+	//pin the argument frame
+	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
+	f->eax = 0;
+	struct list_elem *it;
+	struct list_elem *itnext;
+	struct file *mmap_file = NULL;
+
+	lock_acquire(&frame_lock);
+	acquire_file_lock();
+
+
+	for (it = list_begin(&thread_current()->files_mapped);
+			it != list_end(&thread_current()->files_mapped); )
+	   {
+
+	     			mmap_file = list_entry(it,struct file, file_elem);
+	     			itnext = list_next(it);
+	     			if(mmap_file->fd==fd)
+	     			{
+	     				list_remove(it);
+	     		    //before file close copy contents from memory to file
+	     		    //use unmap
+	     				unmap_file(thread_current()->pagedir,mmap_file);
+	     				file_close(mmap_file);
+	     			}
+	     			it = itnext;
+	   }
+
+	release_file_lock();
+	lock_release(&frame_lock);
 }
 
 

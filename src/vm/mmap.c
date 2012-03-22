@@ -72,7 +72,6 @@ void unmap_file(uint32_t *pd, struct file *fi)
 	struct mmap_entry *mmap_file;
 	struct frame_info *f_inf;
 	uint32_t *pte;
-	lock_acquire(&frame_lock);
 	while(start_address <= pg_round_down(fi->address+file_size))
 	{
 		pte = lookup_page(pd,start_address,false);
@@ -92,8 +91,17 @@ void unmap_file(uint32_t *pd, struct file *fi)
 		{
 			//clear the supp_entry the frame is pointing to
 			uint32_t *kpage = pagedir_get_page(pd,start_address);
+
 			f_inf = frame_get_map(kpage);
 			start_delete = f_inf->s_entry;
+
+			if(pagedir_is_dirty(pd,start_address))
+			{
+				file_seek(fi,((struct mmap_entry *)start_delete->table_ptr)->page_offset);
+				file_write(fi,start_address,PGSIZE);
+				pagedir_set_dirty(pd,start_address,false);
+			}
+
 			list_remove(&start_delete->supp_elem);
 			supp_clear_table_ptr(start_delete);
 			free(start_delete);
@@ -107,5 +115,4 @@ void unmap_file(uint32_t *pd, struct file *fi)
 
 
 
-	lock_release(&frame_lock);
 }

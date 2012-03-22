@@ -206,7 +206,7 @@ static void page_fault(struct intr_frame *f) {
 						exe_map->page_offset);
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
 				pagedir_set_writable(thread_current()->pagedir,upage,tmp_entry->writable);
-
+				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
@@ -234,6 +234,7 @@ static void page_fault(struct intr_frame *f) {
 				/* pin the frame if necessary */
 				if(tmp_entry->pin)
 					frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
+				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&file_lock);
 				lock_release(&frame_lock);
 
@@ -269,6 +270,7 @@ static void page_fault(struct intr_frame *f) {
 				/* pin the frame if necessary */
 				if(tmp_entry->pin)
 						frame_table[FRAME_INDEX(newpage)].flags |= FRAME_STICKY;
+				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
 
