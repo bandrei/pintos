@@ -159,6 +159,7 @@ static void page_fault(struct intr_frame *f) {
 	 write ? "writing" : "reading",
 	 user ? "user" : "kernel");*/
 
+    /* attempt to write to a r/o page. kill the process*/
 	if (!not_present)
 	{
 		kill(f);
@@ -177,24 +178,15 @@ static void page_fault(struct intr_frame *f) {
 						(struct mmap_entry *) tmp_entry->table_ptr;
 				off_t pos = exe_map->file_ptr;
 				uint32_t *newpage = palloc_get_page(PAL_USER);
-				if (newpage == NULL)
-				{
-					lock_release(&frame_lock);
-					_sys_exit(-1, true);
-				}
-
-				if (upage >= thread_current()->stack_bottom)
-				{
-					lock_release(&frame_lock);
-					_sys_exit(-1, true);
-				}
-				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
+				if (newpage == NULL ||
+				    upage >= thread_current()->stack_bottom || 
+				    !pagedir_set_page(thread_current()->pagedir, upage, newpage,
 						true))
 				{
-
 					lock_release(&frame_lock);
-					_sys_exit(-1, true);
+					kill(f);
 				}
+
 
 				size_t page_zero_bytes = PGSIZE - exe_map->page_offset;
 
@@ -203,8 +195,11 @@ static void page_fault(struct intr_frame *f) {
 				file_read(thread_current()->our_file, upage,
 						exe_map->page_offset);
 				lock_release(&file_lock);
+				
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
-				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
+				pagedir_set_writable(thread_current()->pagedir,upage,
+				            SUPP_GET_WRITABLE(tmp_entry->info_arena));
+				            
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				pagedir_set_accessed(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
@@ -214,21 +209,20 @@ static void page_fault(struct intr_frame *f) {
 			{
 				uint32_t *newpage = palloc_get_page(PAL_USER);
 				swap_index_t swap_slot = tmp_entry->table_ptr;
-				if (newpage == NULL)
-				{
-					lock_release(&frame_lock);
-					_sys_exit(-1, true);
-				}
-				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
+				if (newpage == NULL ||
+				    !pagedir_set_page(thread_current()->pagedir, upage, newpage,
 						true))
 				{
 					lock_release(&frame_lock);
-					_sys_exit(-1, true);
+					kill(f);
 				}
+				
 				lock_acquire(&file_lock);
 				swap_in(swap_table, swap_slot, upage);
 
-				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
+				pagedir_set_writable(thread_current()->pagedir,
+				    upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
+				    
 				lock_release(&file_lock);
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
 				pagedir_set_accessed(thread_current()->pagedir,upage,false);
@@ -241,22 +235,16 @@ static void page_fault(struct intr_frame *f) {
 
 				uint32_t *newpage = palloc_get_page(PAL_USER);
 				struct mmap_entry *file = tmp_entry->table_ptr;
-				if(newpage==NULL)
-				{
-					_sys_exit(-1,true);
-				}
-
-				if (upage >= thread_current()->stack_bottom)
-				{
-					lock_release(&frame_lock);
-					_sys_exit(-1, true);
-				}
-				if (!pagedir_set_page(thread_current()->pagedir, upage, newpage,
+				if(newpage==NULL ||
+				    upage >= thread_current()->stack_bottom ||
+				    !pagedir_set_page(thread_current()->pagedir, upage, newpage,
 										true))
 				{
-						lock_release(&frame_lock);
-						_sys_exit(-1, true);
+				    lock_release(&frame_lock);
+					kill(f);
 				}
+
+		
 
 				size_t bytes_read=0;
 				lock_acquire(&file_lock);
@@ -291,8 +279,9 @@ static void page_fault(struct intr_frame *f) {
 					true))
 			{
 				lock_release(&frame_lock);
-				_sys_exit(-1, true);
+				kill(f);
 			}
+			
 			thread_current()->stack_bottom = upage;
 			pagedir_set_dirty(thread_current()->pagedir,upage,false);
 			pagedir_set_accessed(thread_current()->pagedir,upage,false);
@@ -301,7 +290,6 @@ static void page_fault(struct intr_frame *f) {
 		}
 		else
 		{
-
 			lock_release(&frame_lock);
 			kill(f);
 		}

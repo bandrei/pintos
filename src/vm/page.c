@@ -7,6 +7,7 @@
 #include "userprog/pagedir.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "threads/thread.h"
 #include "lib/kernel/bitmap.h"
 
 uintptr_t paging_eviction(void);
@@ -76,7 +77,7 @@ void paging_evict(uintptr_t kpagev)
  {
 
 
-
+	  pagedir_clear_page(kframe->pd,kframe->upage);
 	 if(SUPP_GET_INIT_STATE(ksup->info_arena) ==RAM)
 	 {
 

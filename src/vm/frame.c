@@ -12,14 +12,14 @@ struct lock frame_lock;
 struct list frame_list;
 uint32_t last_frame_freed;
 
-void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, uint32_t *upage)
+void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir,
+                 uint32_t *upage)
 {
 	ASSERT(is_kernel_vaddr(kpage));
     struct frame_info * kframe = &frame_table[FRAME_INDEX(kpage)];
 	kframe -> s_entry=supp;
     kframe -> pd = pagedir;
     kframe -> upage = upage;
-
     list_push_back(&frame_list, &kframe->frame_elem);
 
     SUPP_SET_CUR_STATE(kframe->s_entry->info_arena, RAM);
