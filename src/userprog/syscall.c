@@ -639,7 +639,6 @@ static void sys_seek(struct intr_frame *f)
 	struct list_elem *it;
 	//acquire file lock and perform operations
 
-	//TODO: check if argument frame pinning is really necessary
 	//should not be if the argument are copied inside the function
 
 	//pin the argument frame
@@ -658,7 +657,6 @@ static void sys_seek(struct intr_frame *f)
 		}
 	}
 	release_file_lock();
-	//frame_unpin(thread_current()->pagedir, tmp_esp,1);
 	//pin the argument frame
 	frame_unpin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
@@ -734,8 +732,8 @@ static void sys_mmap(struct intr_frame *f)
 	//the mapping address
 	void *address = *tmp_esp;
 
-	//pin the argument frame
-	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+	//no need to pin any frames or buffers here
+	//as there the values are copied to the kernel stack
 
 	f->eax = -1;
 	struct list_elem *it;
@@ -745,7 +743,6 @@ static void sys_mmap(struct intr_frame *f)
 	//sanity checks
 	if(fd==0 || fd==1)
 	{
-		//_sys_exit(-1,true);
 		return;
 	}
 
@@ -787,8 +784,7 @@ static void sys_mmap(struct intr_frame *f)
 			file_close(mmap_file);
 	release_file_lock();
 
-	//unpin the args frame
-	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
+
 
 }
 
@@ -801,8 +797,6 @@ static void sys_munmap(struct intr_frame *f)
 	int fd = *tmp_esp;
 
 
-	//pin the argument frame
-	//frame_pin(thread_current()->pagedir, (uint8_t *)f->esp, (uint8_t *)tmp_esp);
 
 	f->eax = 0;
 	struct list_elem *it;

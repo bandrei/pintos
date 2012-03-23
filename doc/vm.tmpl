@@ -21,6 +21,14 @@ NOTE: 2 vital functions have been added to the code in pagedir.c: pagedir_set_pt
 and pagedir_get_ptr which deal with extending the default page table to support
 the supplemental page table.
 
+We have decided to implement the version for the supplemental page table which
+required the extension of existing page table (see the comments in the code
+for the explanation of how this works). Therefore we practically not have
+the notion of supplemental page table and we will avoid using the term throught
+this documentation as that is not the case with our implementation (we only
+have a list of supllemental entries which has the sole purpose of making release
+or resources of a dying thread possible).
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
@@ -386,21 +394,81 @@ of the thread (see data structures above), and then retrieving it.
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
 
+Our VM is synchronized in its entirety using a frame table lock (defined as 
+frame_lock in the code). A process acquires the lock prior to calls to 
+palloc (get and free when obtaining pages from the user pool) as well as swap 
+function calls and file system function calls.
+
+Basically whenver a page-fault occurs frame_lock is acquired and then the
+paging mechanism tries to get a free frame from the user pool/frame_table, 
+either by eviction or in the standard way if frames are available. Then the
+frames are filled in with the required data either from the swap partition
+or from the file system accordingly. The same frame lock is being used in system
+calls when using the pinning functions (frame_pin and frame_unpin). One should
+make sure that all the calls to palloc_get_page and palloc_free_page as well
+as frame_add_map and frame_clear_map are being surrouned by this lock (note
+that frame_clear_map and palloc_free_page need to be consitent with each other
+once pagedir_set_page has been used to install a page).
+
+One possible situation in which deadlocks might occur is when both the frame_lock
+and the file_lock are being acquired by some threads (this will happen in most
+of the cases including page-fault handling). In order to avoid such deadlocks
+we decided to have the convention of the frame_lock always being acquired before
+the file_lock (the order they are released does not really matter). Also there
+can be the particular scenario of the same thread acquiring the frame_lock/file_lock
+twice due to a pagefault. This might be the case if the pages are removed from
+the frames while a sys call is using them, and has been solved by using frame
+pinning.
+
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
+
+Prior to eviction of a page from a frame we ensure that the respective page
+has the present bit set to 0 (by using pagedir_clear_page). In this way
+if process Q runs again it will page fault and will wait on the frame lock
+(note that at this point in the page fault handler the supp_entry has not
+been acquired). Once the frame lock is released it means that the page has been
+properly evicted and that the PTE entry now contains a pointer to the supp_entry
+of thread Q. At this point thread Q can resume running and retrieve the
+supp_entry correctly and then page back in the required page.
 
 >> B7: Suppose a page fault in process P causes a page to be read from
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
+While a page is being read in from the file system or swap it will already
+by inside the frame_lock (i.e. the thread will have acquired the frame_lock
+by this time). Therfore process Q will be blocked at this stage (i.e.
+both process are, most likely, in the page fault handler and attempting to
+install a page, which technically means that both process are evicting at the
+same time and as the eviction mechanism is synchronized then there will be 
+no race conditions). 
+Also there is a 2 level synchronization mechanism by using both the frame_lock
+and the file_lock during the swap_in/file_read operations.
+
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
+
+In order to avoid evicting pages that are being used by system calls the frames
+are pinned/locked prior to the actual being done on them. Our pinning mechanism
+works by changing the sticky flag (bit 5 of info_arena) in the supplemental
+entry and then forcing a page fault by a call tot the page_trigger_fault function
+which will then make sure the page is in memory.
+
+Our eviction algorithm will check if the supp. entry that corresponds to the frame
+candidating for eviction has the sticky flag set. If it is set then the page
+will be skipped and the algorithm will carry on looking for other pages to evict
+(note that this does not interfere with the second chance algorithm).
+
+Invalid virtual addresses will be handled in the page fault handler by issuing
+a call to kill() which in turn will cause the user program to close with
+exit code -1.
 
 ---- RATIONALE ----
 
@@ -411,6 +479,31 @@ of the thread (see data structures above), and then retrieving it.
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
 
+We have chosen to use the frame_lock in conjuction with the file_lock
+to synchronize the VM. 
+
+One of the reasons for our choice is given by the fact that not only it is easier
+to maintain synchronization but it will also maintain the page table/supplemental
+entries of a thread synchronized with the swap table, the frame table and the 
+user pool.
+
+Secondly not only makes this easier to avoid deadlocks but it also reduces overhead
+by repeatedly/frequently causing context switches between threads whenever waiting
+on a lock and then releasing it.
+
+Thirdly, a finer grained locking mechanism would be very hard to implement given
+that there are several tables that need to be synchronized and if not managed
+properly minor race condition might appear between calls to different functions
+(like pagedir_set_page and palloc_get_page).
+This sort of problems might not even be caught by the tests and thus are very
+prone to bugs.
+
+Last but not least, parallelism would only be reduced in the cases where multiple
+threads are trying to evict pages at the same time. Other than that threads
+will run normaly and a page fault occuring in one thread will not affect the
+parallelism of the system as a whole.
+ 
+
              MEMORY MAPPED FILES
              ===================
 
@@ -420,14 +513,107 @@ of the thread (see data structures above), and then retrieving it.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* Struct for memory mapping of files */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct mmap_entry
+{
+	/* when used by the lazy loading of the executable
+	 * this will represent the offset in the elf file
+	 * of the code that needs to be read (see load_segment
+	 * for more details on the workings). We don't need
+	 * to store a pointer to a file in this case because
+	 * the thread already has this information.
+	 * In all other cases this will be uses as it is defined
+	 * (as a pointer to a file)
+	 */
+	struct file *file_ptr;
+
+	/* use this to locate the frame in which the file currently
+	 * resides
+	 *
+	 * In the special case of the exe (elf) mappings it will
+	 * be used to store the number of bytes to be read
+	 */
+	uint32_t page_offset;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+this struct is to be used in conjuction with the supplemental entries whenever
+mapping a file to memory
+
+It holds a pointer to the file that it's being mapped as well as the offset
+to read from corresponding to this entry
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+/* Modifief file struct */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct file
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;  			/* Current position. */
+    int fd; 				//file descriptor
+    struct list_elem file_elem;
+    bool deny_write;            /* Has file_deny_write() been called? */
+    void *address;
+    void *supp_entry;
+  };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+added 2 new pointers: address and supp_entry.
+
+Address will point to the memory address where the file will be mapped,
+whereas supp_entry will point to the last supp_entry created when mapping/lazy
+loading the file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+The memory mapping works in a similar fashion to the lazy loading of the executables.
+Whenever a file gets mapped the file is split into pages and for every page 
+a new supplemental entry is created. The supplemental entry is then installed
+in the page table using the PTE field and will used to bring in the contents of
+a file whenever a page fault occurs at an address belonging to the file mapping.
+
+The page fault mechanisms for bringing a page into memory are similar for pages
+of type SWAP, FILE and EXE. In the case of the FILE and EXE pages they are being
+read from the file_system back into memory (note that EXE pages might be writable
+and not writable, the former might be swapped to the swap parition and at the
+next page fault read from the SWAP, whereas the FILE pages will always be read
+from the file_system).
+
+After a page has been brought into memory the writable, dirty and accessed bits
+are set and reset respectively.
+
+Eviction works in the following way:
+If the initial type of a page is RAM then it's most likely a stack page and
+will always be written to the swap paritition no matter whether the page
+has been accessed or not (it will always be either in memory or in swap).
+
+If the initial page is of type EXE then if the page is writable (i.e. a data segment) 
+it will be swapped out to the swap partition and it's current state changed to swap
+even it has not been written (the content of the file has changed and thus cannot
+be copied back to it's original file as that would destroy the executable).
+From this point on this page will oscillate between the swap and the frame/memory.
+
+For the case of FILE page types, if the pages have been written (i.e. their
+dirty bit has been set) then they will be written back to the file system at
+their corresponding offsets (note that because of the way the file system is
+defined if the file is not a multiple of PGSIZE then the remaining bytes from the
+page will not be copied to the file) in their files.
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+In our implementation a file mapping will not overlap the executable segments
+as they are being inserted in the page table before the program starts. 
+As for overwriting the stack, whenever a pagefault occurs the pagefault handler
+will check that the faulting address is not above the current thread's bottom
+stack (see thread struct) and if it is it will kill the process.
 
 ---- RATIONALE ----
 
@@ -437,6 +623,27 @@ of the thread (see data structures above), and then retrieving it.
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+For instance our implemenation does indeed share part of the code. More
+explicitely we use the mmap_entry structures to store information that we need
+for loading the executables from the memory. The reason for which we decided 
+not to share more of the implemenation is also because the executable files
+/entries require more information to be collected when being created or 
+swapped in (unlike the file mappings which will always be written to the file
+system if the page has been written, for the case of executable one needs to make
+sure that firstly some of the pages are not writable, and then make sure that those
+pages that have been written are swapped to swap and never written back to the
+file system itself).
+
+Furthermore for properly loading the executables one does not only need the page
+offset in the file to start reading from but also the number of bytes to read,
+whereas for the case of memory mapped files one can simply read in or write out
+a whole page and fill the remaning with 0s. Also all the file mappings are
+writable therefore one less flag is required.
+
+Overall we "abused" the memory mapping of files to reduce the number of fields
+in a supplemental entry and also avoid the creation of a new separate structure
+to be used specifically with executables. 
 
                SURVEY QUESTIONS
                ================
