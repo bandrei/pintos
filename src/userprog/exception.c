@@ -166,6 +166,7 @@ static void page_fault(struct intr_frame *f) {
 	}
 	if (fault_addr < PHYS_BASE)
 	{
+		/* Swap in the pages either from the file system or from the swap*/
 		lock_acquire(&frame_lock);
 		struct supp_entry *tmp_entry;
 		tmp_entry = pagedir_get_ptr(thread_current()->pagedir, fault_addr);
@@ -265,6 +266,8 @@ static void page_fault(struct intr_frame *f) {
 				kill(f);
 			}
 		}
+
+		/* Implementation of stack growth*/
 		else if (
 				(f->cs == SEL_UCSEG) ?
 						pagedir_page_growable(thread_current()->pagedir,

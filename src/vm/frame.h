@@ -25,7 +25,6 @@
 #define FRAME_SECOND_CHANCE 2U
 #define FRAME_INDEX(VAL) ((vtop(VAL)/PGSIZE)-(init_ram_pages-user_max_pages))
 #define FRAME_VADDR(VAL) (ptov((VAL * PGSIZE)+((init_ram_pages-user_max_pages)* PGSIZE)))
-//#define FRAME_WITH_ADDR
 
 extern size_t user_max_pages;
 extern size_t kernel_max_pages;

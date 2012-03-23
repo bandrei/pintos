@@ -281,49 +281,27 @@ pagedir_get_ptr (uint32_t *pd, const void *vpage)
 }
 
 
-/*
- * Checks if a page address has any pages already existing within RANGE*/
+
+/* Checks if a faulting address is a valid address for stack growth 
+Returns true if the stack is growable otherwise false*/
 bool pagedir_page_growable(uint32_t *pd, const void *vpage, const uint8_t *esp, bool kcseg)
 {
 	char *page_check = (char *)pg_round_up(vpage);
 	char *upper_base = (char *)PHYS_BASE;
 	unsigned int page_range = 1;
 
+	/* if the stack growth demand has been generated in a sys call then use
+	the saved esp to check*/
 	if(kcseg)
 		return (page_check >= PHYS_BASE - (PAGE_RANGE * 4096)) &&
 				(page_check >= thread_current()->stack_save_sys || page_check >= thread_current()->stack_save_sys-32);
 	else
 	{
+	/* otherwise use the standard esp passed as an argument*/
 	return (page_check >= PHYS_BASE - (PAGE_RANGE * 4096)) &&
 			(vpage >= esp || vpage >= esp-32);
 	}
-	/*for(page_range = 0; page_range<=PAGE_RANGE;page_range++)
-	{
-		page_check += PGSIZE;
-		printf("page_ addr %x \n", page_check);
-		if(page_check == PHYS_BASE) break;
 
-		*pte = lookup_page(pd,page_check,false);
-		if(pte!=NULL)
-		{
-			if(*pte!=0)
-			{
-				return true;
-			}
-
-		}
-
-		page_check -= 2*PGSIZE;
-		if(page_check == 0) break;
-
-		*pte = lookup_page(pd,page_check,false);
-		if(pte!=NULL)
-		{
-			if(*pte != 0) return true;
-		}
-
-	}*/
-	//return true;
 }
 
 

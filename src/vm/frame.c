@@ -7,10 +7,10 @@
 #include "vm/page.h"
 #include "userprog/pagedir.h"
 
-struct frame_info *frame_table;
-struct lock frame_lock;
-struct list frame_list;
-uint32_t last_frame_freed;
+struct frame_info *frame_table; /* Global frame table used for storing information
+								about the user frames in memory*/
+struct lock frame_lock;		/* Synchronization mechanism */
+struct list frame_list;		/* Fifo list used for the second chance algorithm*/
 
 void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir,
                  uint32_t *upage)
@@ -26,6 +26,7 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir,
 
 }
 
+/* Clear a frame mapping located at the kernel virtual address kpage */
 void frame_clear_map(uint32_t *kpage)
 {
 	ASSERT(is_kernel_vaddr(kpage));
@@ -37,6 +38,7 @@ void frame_clear_map(uint32_t *kpage)
 
 }
 
+/* Retrieve frame_info struct located at kernel virtual address kpage*/
 struct frame_info *
 frame_get_map(uint32_t *kpage)
 {
@@ -96,6 +98,8 @@ frame_table_init(struct frame_info *f_table, uint32_t count)
 }
 
 
+/* Pin a frame. To be used in conjuction with the system calls to avoid
+race conditions */
 void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 {
 	uint32_t *pte;
@@ -140,11 +144,11 @@ void frame_pin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 
 }
 
+/* Unpin the frames that have been previoulsy pinned */
 void frame_unpin(uint32_t *pd, uint8_t *start_upage, uint8_t *end_page)
 {
 	uint32_t *pte;
 	uint8_t *round_start = pg_round_down(start_upage);
-	//size_t pages = (end_page-start_page/PGSIZE
 	lock_acquire(&frame_lock);
 	while(round_start <= pg_round_down(end_page))
 	{

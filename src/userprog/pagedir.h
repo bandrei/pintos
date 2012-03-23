@@ -6,7 +6,7 @@
 
 #include "vm/page.h"
 
-#define PAGE_RANGE 2048
+#define PAGE_RANGE 2048 /* Maximum stack size allowed to grow*/
 
 uint32_t *pagedir_create (void);
 void pagedir_destroy (uint32_t *pd);

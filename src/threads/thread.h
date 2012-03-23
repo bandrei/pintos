@@ -140,9 +140,11 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;  /* Page directory. */
 #endif
-    struct list supp_list;
-    uint8_t *stack_bottom;
-    uint8_t *stack_save_sys;
+    struct list supp_list; /* List of supplemental table entries. To be used
+							when freeing up memory*/
+    uint8_t *stack_bottom;	/* Current bottom of the stack. To be used in checking
+							whether faulting addresses are allowed above it*/
+    uint8_t *stack_save_sys; /* Save stack pointer when in sys call*/
 
 
     /* Owned by thread.c. */

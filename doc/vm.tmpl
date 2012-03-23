@@ -29,6 +29,11 @@ this documentation as that is not the case with our implementation (we only
 have a list of supllemental entries which has the sole purpose of making release
 or resources of a dying thread possible).
 
+As a general principle we are saving a lot of space by using this approach,
+the "supplemental page table" and frame table accesses become constant and also
+setting up the pointer to the supplemental page table entry becomes atomic (i.e.
+it's one simple assignment instruction).
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
@@ -421,6 +426,10 @@ can be the particular scenario of the same thread acquiring the frame_lock/file_
 twice due to a pagefault. This might be the case if the pages are removed from
 the frames while a sys call is using them, and has been solved by using frame
 pinning.
+
+Because of the structure of the page table and our decision to implement the
+supplemental page table on top of the existing page table a future improvment
+of the operating system could have a lock free implementation of the VM
 
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify

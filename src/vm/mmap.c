@@ -9,6 +9,9 @@
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 
+
+/* Map the file fi in the page directory pd starting at the address
+specified in the file structure */
 bool map_file(uint32_t *pd,struct file *fi)
 {
 	uint8_t *start_address = (uint8_t *)fi->address;
@@ -36,7 +39,7 @@ bool map_file(uint32_t *pd,struct file *fi)
 	while(start_address <= pg_round_down(fi->address+file_size))
 	{
 
-		//TODO: Do memory checks on malloc
+		/* Terminate the thread if malloc is not successful*/
 		supp_map = malloc(sizeof(*supp_map));
 		if(supp_map == NULL)
 		{
@@ -58,7 +61,6 @@ bool map_file(uint32_t *pd,struct file *fi)
 		SUPP_SET_INIT_STATE(supp_map->info_arena, FILE);
 		SUPP_SET_WRITABLE(supp_map->info_arena,WRITABLE);
 		supp_map->table_ptr = mmap_file;
-		//supp_map->writable = true;
 
 		pagedir_set_ptr(pd,start_address,supp_map);
 		start_address += PGSIZE;
@@ -68,6 +70,8 @@ bool map_file(uint32_t *pd,struct file *fi)
 	return true;
 }
 
+/* Unmap the file that has been previously mapped (if the file has not been
+mapped this function should not be called */
 void unmap_file(uint32_t *pd, struct file *fi)
 {
 

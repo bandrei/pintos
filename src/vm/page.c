@@ -10,10 +10,11 @@
 #include "threads/thread.h"
 #include "lib/kernel/bitmap.h"
 
+/* auxiliary function used for evicting*/
 uintptr_t paging_eviction(void);
 
 
-
+/* Initialize the fields in a supplemental page table entry*/
 void init_supp_entry(struct supp_entry *s_entry)
 {
 	ASSERT(s_entry != NULL);
@@ -28,15 +29,6 @@ void init_supp_entry(struct supp_entry *s_entry)
 
 }
 
-
-void swap_init()
-{
-  struct block* swap_disk = block_get_role(BLOCK_SWAP);
-  if (swap_disk == NULL)
-    PANIC ("No swap disk found");
-  
-  swap_table = swap_create(swap_disk);
-}
 
 bool paging_get_free_frame()
 {
@@ -80,18 +72,14 @@ void paging_evict(uintptr_t kpagev)
 	  pagedir_clear_page(kframe->pd,kframe->upage);
 	 if(SUPP_GET_INIT_STATE(ksup->info_arena) ==RAM)
 	 {
-
-
-	  if(pagedir_is_dirty(kframe->pd,kframe->upage))
-	  {
+		/* Copy page to the swap for later use*/
 		  SUPP_SET_CUR_STATE(ksup->info_arena, SWAP);
 		  swap_index_t swapslot = swap_out(swap_table, (void *) kpage);
 		  ksup->table_ptr= swapslot;
-	  }
 	 }
 	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == EXE)
 	 {
-
+		/* Swap out executable pages that behave as writable files*/
 		if(SUPP_GET_WRITABLE(ksup->info_arena))
 		{
 			SUPP_SET_CUR_STATE(ksup->info_arena, SWAP);
@@ -111,6 +99,8 @@ void paging_evict(uintptr_t kpagev)
 	 else if(SUPP_GET_INIT_STATE(ksup->info_arena) == FILE)
 	 {
 		 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
+		 /* If the page has been written to then swap it back to the file
+			system */
 		 if(pagedir_is_dirty(kframe->pd,kframe->upage) && SUPP_GET_WRITABLE(ksup->info_arena))
 		 {
 			 SUPP_SET_CUR_STATE(ksup->info_arena, FILE);
@@ -128,7 +118,8 @@ void paging_evict(uintptr_t kpagev)
 }
 else
 {
-
+	/* Catch an error when the info_arena of the supplemental entry is 
+	corrupted*/
 	PANIC("Undefined supplemental entry type");
 }
   
@@ -165,6 +156,8 @@ uintptr_t paging_eviction()
 	  	  {
 	  		  free_slot = fi-frame_table;
   			  paging_evict(FRAME_VADDR((free_slot)));
+
+			 /* attempt to evict 4 frames in one go for efficiency reasons*/
   			  if(evict_once == 4)
 	      			break;
 		      evict_once++;
@@ -182,9 +175,6 @@ uintptr_t paging_eviction()
 
 
   }
-
-
- 
   
     return evict_once;
 }
@@ -205,9 +195,7 @@ void supp_clear_table_ptr(struct supp_entry *s_entry)
 	}
 	else if(SUPP_GET_CUR_STATE(s_entry->info_arena) == RAM)
 	{
-		//printf don't do anything as pagedir will take care
-		//of it (supp_entry might not contain a pointer to supp
-		//entry
+		//should not do anything in this case
 		
 	}
 	else if(SUPP_GET_CUR_STATE(s_entry->info_arena) == EXE)
