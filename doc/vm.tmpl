@@ -191,7 +191,7 @@ The only places when a user process might require a frame have been carefully
 identified in the code (i.e. these places are usually, in the presence of 
 pagedir_get_page and whenever palloc_get_page(PAL_USER) is being called:
 installation of the first stack page, and the page fault handler; also
-access to the frame table is required usually when calling palloc_free_page: 
+access to the frame table is required usually when calling palloc_free_page; 
 clearing the page directory or swapping out or just removing unsucessfully
 setup pages).
 
@@ -221,6 +221,9 @@ works is explained in more detail in the code, but a as a general idea a malloce
 object will always have an address above 0xc000000000 thus we can always assume
 that the most significant bit of the pointer address will be 1 (i.e. this
 will leave us enough space in the PTE to set/reset the present bit).
+
+To get the supp. entry from the PTE when the present bit is 0 one can use
+the pagedir_get_ptr() function.
 
 Whenever a page installed in a frame the frame table entry will contain a 
 pointer to the supplemental entry the PTE was previously pointing to, thus
@@ -287,6 +290,20 @@ swapfile a.k.a swap_table will keep information about the swap partition.
 It is the structure that is being used when swapping pages in and out.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+/*Thread struct added fields */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  uint8_t *stack_bottom;
+  uint8_t *stack_save_sys;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+stack_bottom is used to make sure that no page allocations/supp_entry creations
+will overlap with the stack
+
+stack_save_sys is used to keep track of the user esp whenever a page fault occurs
+inside a sys call
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 NOTE: also see the declarations from part A  for the other page tables
 
 ---- ALGORITHMS ----
@@ -329,17 +346,38 @@ to point to the supp entry "contained" in the frame at that moment (see details
 above on how this works).
     Then, depending on the case, the frame is either evicted to SWAP or to FILE (
 in the case of memory mapped files), or left as is. In case it is being swapped
- out the table_ptr in the supplemental entry will now contain (as an address value) 
+ out, the table_ptr in the supplemental entry will now contain (as an address value) 
 the actual swap slot/index. If it's being written back to a file then the pointer 
-will point to the mmap_entry created whenever the file was memory mapped. 
+will point to the mmap_entry created whenever the file was memory mapped (in practice
+this pointer will never actually change, as it only changes when an EXE or RAM
+type of entry is being swapped out). 
+
+At this point all the swap table, frame table, user pool and should all be synched
+and properly reflect the location of the page.
 
 NOTE: the function pagedir_set_ptr (used in setting the supp entry pointer
 into the PTE will ensure that the present bit is being set to 0);
 
 
+
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+It the faulting address is above the esp and also at a maximum of 8MB below
+the top of the user space than the stack will be extending automatically
+if the page is being installed/set (i.e. pagedir_set_page will create a RAM
+supp entry if one does not exist, which is most likely the case for stack pages,
+one will be created and installed in a frame).
+
+Also there is the special case of PUSH and PUSHA instructions which will check
+an address at mostly 32 bytes below the stack pointer. If that is the case
+and the address is within the 8 MB range then the stack will be extended.
+
+
+NOTE: in the case of system calls when the esp when faulting is no longer the
+one from the user address, we have solved the problem by saving in the struct
+of the thread (see data structures above), and then retrieving it.
 
 ---- SYNCHRONIZATION ----
 
