@@ -17,6 +17,10 @@ Alina Boghiu <ab3110@imperial.ac.uk>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
+NOTE: 2 vital functions have been added to the code in pagedir.c: pagedir_set_ptr
+and pagedir_get_ptr which deal with extending the default page table to support
+the supplemental page table.
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
@@ -212,7 +216,7 @@ As a whole principle we used the already existing page table to keep the mapping
 and also the additional information required for a page. We have managed to do
 this by modyfing the PTE entry so that when the present bit is set to 0 we use
 the remaining 31 bits as a pointer to the supplemental entry (this will always
-exist by the time the pointer is being set in the PTE). The reasons for why this
+exist/allocated by the time the pointer is being set in the PTE). The reasons for why this
 works is explained in more detail in the code, but a as a general idea a malloced
 object will always have an address above 0xc000000000 thus we can always assume
 that the most significant bit of the pointer address will be 1 (i.e. this
@@ -243,7 +247,15 @@ Also the supplemental table entries are being kept in a list in the thread
 struct so that they can be accessed whenever the thread dies and frees up its
 resources.
 
-All this small structures(tables) form up the page table management mechanism
+The advantage of having such an implementation is the O(1) access time given by 
+looking up through the page table whenever requiring information from the
+supplemental entry or whenever the paging algorithm needs the supp. entry (i.e.
+it can be accessed through the s_entry pointer).
+
+As one can see, the supp. entry uses a bitmap to store most of the necessary
+information about a page, thus making the whole structure space efficient
+(considering the cases where many processes are running and they are at full
+capicity).
 
                PAGING TO AND FROM DISK
                =======================
@@ -284,16 +296,19 @@ NOTE: also see the declarations from part A  for the other page tables
 
 When palloc_free_page does not successfully manage to get a free page there are
 2 possible scenarios: 
+
 1. the kernel pool is full in which case no more processes can be created or
-the whole system might come to a hatl.
+the whole system might come to a halt.
+
 2. the user pool is full in which case the eviction mechanism kicks in. As
 we implemented a second chance eviction algorithm the list of used frames 
 is travarsed from the beginning to the end in order to find candidate frames.
 If the page contained in the frame has the accessed bit set to 1 then it is given
-a second chance and put at the back of the list. Our algorithm will try evicting
-up to 4 frames at a time (i.e. during one traversal of the list) as to improve
-efficieny (this hack will most likely transform the complexity of 
-palloc_get_multiple into one described by a log curve, due to the fact 
+a second chance and put at the back of the list.
+
+Our algorithm will try evictingup to 4 frames at a time (i.e. during one traversal 
+of the list) as to improve efficieny (this hack will most likely transform the 
+complexity of palloc_get_multiple into one described by a log curve, due to the fact 
 that successive calls will cause less page eviction; the drawback of this 
 approach is that in the case when only when frame would need eviction for a
 very long time then the whole list will get travarsed while trying to free
@@ -308,6 +323,19 @@ eviction was successful.
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
+
+    During eviction we set the PTE entry for the page that is going to be evicted
+to point to the supp entry "contained" in the frame at that moment (see details
+above on how this works).
+    Then, depending on the case, the frame is either evicted to SWAP or to FILE (
+in the case of memory mapped files), or left as is. In case it is being swapped
+ out the table_ptr in the supplemental entry will now contain (as an address value) 
+the actual swap slot/index. If it's being written back to a file then the pointer 
+will point to the mmap_entry created whenever the file was memory mapped. 
+
+NOTE: the function pagedir_set_ptr (used in setting the supp entry pointer
+into the PTE will ensure that the present bit is being set to 0);
+
 
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
