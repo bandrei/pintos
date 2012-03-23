@@ -159,24 +159,85 @@ table entry (also for the same reason of access speed).
 Obviously this only makes sense in the context of a page being in a frame.
 When a page is not in the frame we use the unused 31 bits of a page table entry
 to return a pointer to a supplemental page table entry (see the code for a more
-clear understanding on how this operation works). The rest of the
-information about the page itself can then be retrieved from here. 
+clear understanding on how this operation works, i.e. pagedir_set_ptr). 
+The rest of the information about the page itself can then be retrieved from here. 
 
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
 
-We avoid alias problems between kernel and user virtual addresses by 
+We avoid alias problems between kernel and user virtual addresses by only using
+user addresses when operating on a page (i.e. whenever reading to a page or 
+from a page during eviction processes and in the page fault handler). Also
+as we are using only user virtual addresses to get the supplemental entries
+or information about the dirty and accessed bits, even if the flags in the PTE 
+entries for the kernel virtual addresses will become incosistent with their
+aliased user addresses this would not be a problem as those flags will never
+be used in our algorithm (i.e. when actually checking the flags).
+
+Therefore a real alias problem might arise only when dealing with shared pages
+between user processes or shared file mappings. 
 
 ---- SYNCHRONIZATION ----
 
 >> A4: When two user processes both need a new frame at the same time,
 >> how are races avoided?
 
+The only places when a user process might require a frame have been carefully
+identified in the code (i.e. these places are usually, in the presence of 
+pagedir_get_page and whenever palloc_get_page(PAL_USER) is being called:
+installation of the first stack page, and the page fault handler; also
+access to the frame table is required usually when calling palloc_free_page: 
+clearing the page directory or swapping out or just removing unsucessfully
+setup pages).
+
+Therefore to ensure race conditions are avoided on the frame table we lock
+the frame table whenever an allocation or deallocation of a user page takes
+place (using frame_lock). This not only ensures the sanity of the frame table 
+but also keeps it consistent with the process page table, 
+the user pool and swap table/partition.
+
+Furthermore concurent accesses when acquiring a frame will most likely result
+in the eviction of a page belonging to another process. In such case we
+ensured that the other process, if it's doing an operation on the frame table needs
+to acquire a lock prior to that so that its operation and page table is kept in
+a safe state. 
+
 ---- RATIONALE ----
 
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
+
+As a whole principle we used the already existing page table to keep the mappings
+and also the additional information required for a page. We have managed to do
+this by modyfing the PTE entry so that when the present bit is set to 0 we use
+the remaining 31 bits as a pointer to the supplemental entry (this will always
+exist by the time the pointer is being set in the PTE). The reasons for why this
+works is explained in more detail in the code, but a as a general idea a malloced
+object will always have an address above 0xc000000000 thus we can always assume
+that the most significant bit of the pointer address will be 1 (i.e. this
+will leave us enough space in the PTE to set/reset the present bit).
+
+Whenever a page installed in a frame the frame table entry will contain a 
+pointer to the supplemental entry the PTE was previously pointing to, thus
+guaranteeing that we never lose track of the supplemental entries when paging.
+
+A supplemental page table entry contains an info_arena which (doing bitwise
+operations) will in turn contain information about the current state of the page
+(i.e. in SWAP, FILE, RAM, etc.) the initial type/state, if the page is writable,
+or if the page is supposed to be pinned in the frame. An important aspect is
+the table_ptr pointer in the supp entry which will point to some other auxiliary
+data structures as follows:
+    1.  For the EXE init state the pointer will point to a mmap_entry (which
+    has been hacked so that its  file_ptr will hold the starting point to read
+    from the file and the page_offset field will hold the number of bytes to
+    be read from file.
+    2. For FILE init state this will point to a mmap_entry created whenever
+    memory mapping a file
+    3. For RAM this will always point to NULL as its current state will at some
+    future point change to SWAP at which point the entry will point to the
+    swap_table.
+    4. SWAP will never be an initial state.
 
                PAGING TO AND FROM DISK
                =======================
