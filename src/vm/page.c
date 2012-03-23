@@ -173,7 +173,6 @@ uintptr_t paging_eviction()
 	  	 {
 	  		 list_remove(&fi->frame_elem);
 	  		 pagedir_set_accessed(fi->pd,fi->upage,false);
-	  		 //fi->flags = (fi->flags | FRAME_SECOND_CHANCE);
 	  		 list_push_back(&frame_list, &fi->frame_elem);
 
 	  	  }

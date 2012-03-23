@@ -10,7 +10,7 @@
 
 Andrei Bara <ab6610@imperial.ac.uk>
 Rory Allford <rda10@imperial.ac.uk>
-Alina Boghiu <ab---@imperial.ac.uk>
+Alina Boghiu <ab3110@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
 
@@ -241,7 +241,9 @@ data structures as follows:
     
 Also the supplemental table entries are being kept in a list in the thread 
 struct so that they can be accessed whenever the thread dies and frees up its
-resources
+resources.
+
+All this small structures(tables) form up the page table management mechanism
 
                PAGING TO AND FROM DISK
                =======================
@@ -273,10 +275,35 @@ swapfile a.k.a swap_table will keep information about the swap partition.
 It is the structure that is being used when swapping pages in and out.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+NOTE: also see the declarations from part A  for the other page tables
+
 ---- ALGORITHMS ----
 
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
+
+When palloc_free_page does not successfully manage to get a free page there are
+2 possible scenarios: 
+1. the kernel pool is full in which case no more processes can be created or
+the whole system might come to a hatl.
+2. the user pool is full in which case the eviction mechanism kicks in. As
+we implemented a second chance eviction algorithm the list of used frames 
+is travarsed from the beginning to the end in order to find candidate frames.
+If the page contained in the frame has the accessed bit set to 1 then it is given
+a second chance and put at the back of the list. Our algorithm will try evicting
+up to 4 frames at a time (i.e. during one traversal of the list) as to improve
+efficieny (this hack will most likely transform the complexity of 
+palloc_get_multiple into one described by a log curve, due to the fact 
+that successive calls will cause less page eviction; the drawback of this 
+approach is that in the case when only when frame would need eviction for a
+very long time then the whole list will get travarsed while trying to free
+up to 4 frame, but during testing it has been revealed that trying to evict
+more than one page at a time might improves the efficiency).
+
+The algorithm succeeds if at least one frame has been freed. 
+
+NOTE: after eviction in palloc_get_multiple a check is made to ensure that
+eviction was successful.
 
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
