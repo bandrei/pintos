@@ -17,7 +17,6 @@ void frame_add_map(uint32_t *kpage, struct supp_entry *supp, uint32_t *pagedir, 
 	ASSERT(is_kernel_vaddr(kpage));
     struct frame_info * kframe = &frame_table[FRAME_INDEX(kpage)];
 	kframe -> s_entry=supp;
-    kframe -> flags=0;
     kframe -> pd = pagedir;
     kframe -> upage = upage;
 
@@ -35,7 +34,6 @@ void frame_clear_map(uint32_t *kpage)
 	list_remove(&frame_table[FRAME_INDEX(kpage)].frame_elem);
 	SUPP_RESET_STICKY(frame_table[FRAME_INDEX(kpage)].s_entry->info_arena);
 	frame_table[FRAME_INDEX(kpage)].s_entry=NULL;
-    frame_table[FRAME_INDEX(kpage)].flags=0;
 
 }
 
@@ -92,7 +90,6 @@ frame_table_init(struct frame_info *f_table, uint32_t count)
 	{
 		ASSERT(f_table != NULL)
 		f_table->s_entry = NULL;
-        	f_table->flags = 0;
 		f_table++;
 	}
 

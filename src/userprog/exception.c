@@ -206,6 +206,7 @@ static void page_fault(struct intr_frame *f) {
 				memset(upage + exe_map->page_offset, 0, page_zero_bytes);
 				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
+				pagedir_set_accessed(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
 			}
@@ -230,6 +231,7 @@ static void page_fault(struct intr_frame *f) {
 				pagedir_set_writable(thread_current()->pagedir,upage,SUPP_GET_WRITABLE(tmp_entry->info_arena));
 				lock_release(&file_lock);
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
+				pagedir_set_accessed(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
 
@@ -264,6 +266,7 @@ static void page_fault(struct intr_frame *f) {
 				size_t page_zero_bytes = PGSIZE-bytes_read;
 				memset(upage+bytes_read,0,page_zero_bytes);
 				pagedir_set_dirty(thread_current()->pagedir,upage,false);
+				pagedir_set_accessed(thread_current()->pagedir,upage,false);
 				lock_release(&frame_lock);
 
 			}
@@ -291,6 +294,8 @@ static void page_fault(struct intr_frame *f) {
 				_sys_exit(-1, true);
 			}
 			thread_current()->stack_bottom = upage;
+			pagedir_set_dirty(thread_current()->pagedir,upage,false);
+			pagedir_set_accessed(thread_current()->pagedir,upage,false);
 			lock_release(&frame_lock);
 
 		}

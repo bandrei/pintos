@@ -23,6 +23,8 @@
 #include "threads/pte.h"
 #include "threads/thread.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -258,7 +260,6 @@ parse_options (char **argv)
       else if (!strcmp (name, "-swap"))
       {
         swap_bdev_name = value;
-        printf("SWAP SIZE: %c\n", swap_bdev_name);
       }
 #endif
 #endif

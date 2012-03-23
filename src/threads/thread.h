@@ -140,7 +140,6 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;  /* Page directory. */
 #endif
-    struct supp_entry *supp_table;
     struct list supp_list;
     uint8_t *stack_bottom;
     uint8_t *stack_save_sys;

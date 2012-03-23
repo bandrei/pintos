@@ -41,7 +41,6 @@ struct frame_info
 
     struct supp_entry *s_entry;
     uint32_t *pd;
-    uint32_t flags;
     uint32_t *upage;
 
     struct list_elem frame_elem;

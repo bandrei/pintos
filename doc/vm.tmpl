@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Andrei Bara <ab6610@imperial.ac.uk>
+Rory Allford <rda10@imperial.ac.uk>
+Alina Boghiu <ab---@imperial.ac.uk>
 
 ---- PRELIMINARIES ----
 
@@ -30,14 +30,143 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* struct thread changed */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+added  struct list supp_list;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/* Supplementary page table information and structs*/
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+enum supp_flag
+{
+	RAM = 0U,
+	SWAP = 1U,
+	FILE = 2U,
+	EXE = 3U,
+	WRITABLE = 32U
+};
+
+
+struct supp_entry
+{
+	/* store information in this 32 bit number
+	 * in a bitwise fashion; 
+	 */
+	uint32_t info_arena;
+
+	//pointer to where the page is now (i.e. swap, disk, etc.)
+	void *table_ptr;
+
+	/*use this in conjunction with a list
+	 *of supplemental table entries
+	 */
+	struct list_elem supp_elem;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+
+enum supp_flag stores values for the flags that are going to be set in
+the supp_entry information pool (info_arena).
+
+supp_entry is the structure used in the supplemental page table to acquire
+all the necessary information.
+The structure of the info_arena is as follows:
+
+Bits 0-1: used to store the current state of the page (i.e. in RAM, SWAP, FILE
+or EXE)
+
+Bits 2-3: used to store the initial state of the page(i.e. if created from RAM
+as a stack page most likely, copied from FILE or from EXE).
+
+Bit 4: the sticky bit (if set then the page should not be evicted from the frame)
+Bit 5: the writable bit (the page is writable so if the page has been written then
+evict it to SWAP or FILE)
+
+table_ptr is a pointer to the auxiliary data structures used by either the swap_table
+or the frame_table;
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+/*Frame table information and structs, locks and lists */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+extern struct frame_info *frame_table;
+extern struct lock frame_lock;
+extern struct list frame_list;
+
+struct frame_info
+{
+
+    struct supp_entry *s_entry;
+    uint32_t *pd;
+    uint32_t *upage;
+
+    struct list_elem frame_elem;
+};
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+This structure will be used to store information about each user frame so
+that we can implement paging properly. 
+The frame table is actually an array of frame_info structs that is being allocated
+whenever the OS starts.
+
+frame_list is being used for storing the FIFO information required for the
+second chance eviction algorithm.
+
+frame_lock is being used to ensure overall synchronization with palloc_get_page
+and palloc_free_page, etc. (i.e. with the whole paging/swapping algorithm)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+/* Swap struct */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/* A swapfile on a block device */
+struct swapfile
+  {
+    struct bitmap * page_map;         /* Bitmap of allocated pages in swap */
+    
+    struct block * device;            /* Block device swapfile is stored on */
+    
+    swap_index_t size;                    /* page slot numbers 0 <= x < size */
+  };
+  
+  
+struct swapfile *swap_table = NULL;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+swapfile a.k.a swap_table will keep information about the swap partition.
+It is the structure that is being used when swapping pages in and out.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for locating the frame,
 >> if any, that contains the data of a given page.
 
+Initially the frame table (which is an arrray) is allocated during system 
+boot-up and has the exact size of the number of user pages that are going to be 
+available.
+
+The frame table is a one to one mapping between kernel addresses and frame
+table indexes. Thus when we want to locate frame information for a certain
+page we get the kernel address of that page (using pagedir_get_page)
+and then map it to a frame index (see the macros defined in the code).
+This will allow for constant time operations whenever we need to access a frame 
+table entry. The frame entry will contain a pointer to a supplemental page
+table entry (also for the same reason of access speed).
+
+Obviously this only makes sense in the context of a page being in a frame.
+When a page is not in the frame we use the unused 31 bits of a page table entry
+to return a pointer to a supplemental page table entry (see the code for a more
+clear understanding on how this operation works). The rest of the
+information about the page itself can then be retrieved from here. 
+
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
+
+We avoid alias problems between kernel and user virtual addresses by 
 
 ---- SYNCHRONIZATION ----
 

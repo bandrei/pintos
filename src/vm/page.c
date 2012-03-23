@@ -11,7 +11,7 @@
 
 uintptr_t paging_eviction(void);
 
-struct swapfile *swap_table = NULL;
+
 
 void init_supp_entry(struct supp_entry *s_entry)
 {
@@ -21,8 +21,7 @@ void init_supp_entry(struct supp_entry *s_entry)
 	SUPP_SET_CUR_STATE(s_entry->info_arena, RAM);
 	SUPP_SET_INIT_STATE(s_entry->info_arena, RAM);
 	SUPP_SET_WRITABLE(s_entry->info_arena,WRITABLE);
-	//SUPP_SET_STICKY(s_entry->info_arena);
-	//s_entry->writable = true;
+
 
 	list_push_front(&thread_current()->supp_list,&s_entry->supp_elem);
 
@@ -161,7 +160,7 @@ uintptr_t paging_eviction()
 	  it = fi->frame_elem.next;
 	  if(fi->s_entry!=NULL && !SUPP_GET_STICKY(fi->s_entry->info_arena))
 	  {
-	  	  if(fi->flags & FRAME_SECOND_CHANCE)
+	  	  if(!pagedir_is_accessed(fi->pd,fi->upage))
 	  	  {
 	  		  free_slot = fi-frame_table;
   			  paging_evict(FRAME_VADDR((free_slot)));
@@ -173,7 +172,8 @@ uintptr_t paging_eviction()
 	  	 else
 	  	 {
 	  		 list_remove(&fi->frame_elem);
-	  		 fi->flags = (fi->flags | FRAME_SECOND_CHANCE);
+	  		 pagedir_set_accessed(fi->pd,fi->upage,false);
+	  		 //fi->flags = (fi->flags | FRAME_SECOND_CHANCE);
 	  		 list_push_back(&frame_list, &fi->frame_elem);
 
 	  	  }

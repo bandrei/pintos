@@ -15,11 +15,6 @@ extern struct swapfile *swap_table;
  * to use hex)
  */
 
-/**
- * info_arena layout
- * 
- * MSB |                ZERO[1bit]|STATE [3bits]| LSB
- **/
 
 
 
@@ -46,28 +41,19 @@ enum supp_flag
 	FILE = 2U,
 	EXE = 3U,
 	WRITABLE = 32U
-	//SUPP_ZERO = 5U
 };
 
 
-union supp_entry_ptr
-{
-	void *ram_table_entry;
-	void *swap_table_entry;
-	void *file_table_entry;
-	void *exe_table_entry;
-};
 
 struct supp_entry
 {
 	/* store information in this 32 bit number
-	 * in a bitwise fashion;
+	 * in a bitwise fashion; 
 	 */
 	uint32_t info_arena;
 
 	//pointer to where the page is now (i.e. swap, disk, etc.)
 	void *table_ptr;
-	//tmp hack until mmap implementation
 
 	/*use this in conjunction with a list
 	 *of supplemental table entries
@@ -76,12 +62,10 @@ struct supp_entry
 };
 
 void init_supp_entry(struct supp_entry *s_entry);
-//uint32_t supp_get_page_location(struct supp_entry *s_entry);
-//void supp_set_flag(struct supp_entry *s_entry, enum supp_flag flag);
 void supp_set_table_ptr(struct supp_entry *s_entry, void *address);
 void supp_clear_table_ptr(struct supp_entry *s_entry);
 
-void swap_init(void);
+
 bool paging_get_free_frame(void);
 
 

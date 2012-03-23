@@ -7,6 +7,7 @@
 
 inline swap_index_t swap_free_slot(struct swapfile* swap);
 inline void swap_put(struct swapfile* swap, swap_index_t slot, void * src);
+struct swapfile *swap_table = NULL;
 
 void swap_free(struct swapfile *swap) {
   if (swap != NULL) {

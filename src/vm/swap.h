@@ -24,9 +24,11 @@ struct swapfile
     swap_index_t size;                    /* page slot numbers 0 <= x < size */
   };
 
+extern struct swapfile *swap_table;
 struct swapfile* swap_create(struct block *target);
 void swap_free(struct swapfile *swap);
 
+void swap_init(void);
 inline void swap_peek(struct swapfile* swap, swap_index_t slot, void * dest);
 void swap_in(struct swapfile* swap, swap_index_t slot, void * dest);
 swap_index_t swap_out(struct swapfile* swap, void * src);
