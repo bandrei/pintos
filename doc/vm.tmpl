@@ -238,6 +238,10 @@ data structures as follows:
     future point change to SWAP at which point the entry will point to the
     swap_table.
     4. SWAP will never be an initial state.
+    
+Also the supplemental table entries are being kept in a list in the thread 
+struct so that they can be accessed whenever the thread dies and frees up its
+resources
 
                PAGING TO AND FROM DISK
                =======================
@@ -247,6 +251,27 @@ data structures as follows:
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+
+/* Swap struct */
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/* A swapfile on a block device */
+struct swapfile
+  {
+    struct bitmap * page_map;         /* Bitmap of allocated pages in swap */
+    
+    struct block * device;            /* Block device swapfile is stored on */
+    
+    swap_index_t size;                    /* page slot numbers 0 <= x < size */
+  };
+  
+  
+struct swapfile *swap_table = NULL;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DESCRIPTION:
+swapfile a.k.a swap_table will keep information about the swap partition.
+It is the structure that is being used when swapping pages in and out.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ---- ALGORITHMS ----
 
